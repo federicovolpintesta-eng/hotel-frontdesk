@@ -1,0 +1,264 @@
+:root {
+  /* Luxury Hotel Palette (Dark Mode Base) */
+  --brand-primary: #C5A059; /* Elegant Gold/Bronze */
+  --brand-primary-hover: #B08D4C;
+  --bg-main: #0B0F19; /* Deep luxury navy/black */
+  --bg-header: #111827; /* Slate dark */
+  --bg-card: #1E293B; /* Slightly lighter dark for cards */
+  --text-main: #F8FAFC; /* Soft white for readability */
+  --text-muted: #94A3B8;
+  --border-color: #334155;
+  
+  --status-good: #10B981;
+  --status-bad: #EF4444;
+
+  --font-serif: 'Playfair Display', serif;
+  --font-sans: 'Inter', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  -webkit-font-smoothing: antialiased;
+}
+
+
+h1, h2, h3, h4, h5, h6, .serif {
+  font-family: var(--font-serif);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.app-container {
+  min-height: 100vh;
+}
+
+/* Base Card / Panel */
+.hotel-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4), 0 4px 10px rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border-color);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hotel-card:hover {
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 8px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Buttons */
+.btn {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+}
+
+.btn-primary {
+  background-color: var(--bg-header);
+  color: var(--brand-primary);
+  border: 1px solid var(--brand-primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--brand-primary);
+  color: white;
+}
+
+.btn-primary:disabled {
+  background-color: #CBD5E1;
+  color: #94A3B8;
+  border-color: #CBD5E1;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+}
+
+.btn-outline:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-gold {
+  background-color: var(--brand-primary);
+  color: white;
+}
+.btn-gold:hover {
+  background-color: var(--brand-primary-hover);
+}
+
+/* Inputs */
+.input-corp {
+  width: 100%;
+  padding: 16px 20px;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  font-size: 1rem;
+  font-family: var(--font-sans);
+  box-sizing: border-box;
+  background-color: #F8FAFC;
+  transition: all 0.3s ease;
+}
+
+.input-corp:focus {
+  outline: none;
+  background-color: white;
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.1);
+}
+
+/* Hero Background Section */
+.hero-bg {
+  background-image: url('/images/hotel_hero_bg.png');
+  background-size: cover;
+  background-position: center;
+  position: relative;
+}
+
+.hero-bg::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(15, 23, 42, 0.4); /* Dark elegant overlay */
+}
+
+.glass-panel {
+  background: rgba(17, 24, 39, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  color: var(--text-main);
+}
+
+.diploma-card {
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  border: 4px double var(--brand-primary);
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+}
+.diploma-card::before {
+  content: '';
+  position: absolute;
+  top: 10px; left: 10px; right: 10px; bottom: 10px;
+  border: 1px solid rgba(197, 160, 89, 0.3);
+  pointer-events: none;
+}
+
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+  .no-print {
+    display: none !important;
+  }
+  body, html {
+    background-color: white !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .hotel-card, .enterprise-panel {
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  /* Fix overlay centering in print which causes top content to be cut off */
+  div[style*="position: absolute"], div[style*="position: fixed"] {
+    position: relative !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: auto !important;
+    display: block !important; /* disable flex centering */
+    height: auto !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+  /* Ensure grids break correctly */
+  div[style*="display: grid"] {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 1024px) {
+  .app-container {
+    padding: 20px !important;
+  }
+  .hotel-card, .enterprise-panel, .glass-panel {
+    padding: 30px !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  .responsive-dashboard {
+    flex-direction: column !important;
+  }
+  .responsive-sidebar {
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 20px !important;
+  }
+  .responsive-main {
+    padding: 20px !important;
+  }
+  .grid-9box {
+    grid-template-columns: 1fr 1fr !important;
+  }
+}
+
+@media (max-width: 768px) {
+  h1 { font-size: 2rem !important; }
+  h2 { font-size: 1.5rem !important; }
+  .hotel-card, .enterprise-panel, .glass-panel {
+    padding: 20px !important;
+  }
+  
+  /* Make pipeline a swipeable carousel without bottom scrollbar */
+  .pipeline-container {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+  }
+  .pipeline-container::-webkit-scrollbar {
+    display: none; /* Hide scrollbar in Webkit (barra abajo) */
+  }
+  .pipeline-column {
+    min-width: 85vw !important;
+    scroll-snap-align: start;
+    margin-right: 16px;
+  }
+
+  .grid-9box {
+    grid-template-columns: 1fr !important;
+  }
+  .modal-right {
+    width: 100% !important;
+  }
+}

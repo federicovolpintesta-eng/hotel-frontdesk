@@ -1,0 +1,80 @@
+1. Caída del sistema PMS durante el check-out de un grupo.
+a. A) Aplicar procedimiento de contingencia manual (planillas impresas) y volcar los datos al sistema cuando regrese la conexión.
+b. B) Pedir a los huéspedes que esperen en el lobby indefinidamente hasta que el sistema vuelva.
+c. C) Dejar ir al grupo sin cobrar consumos extras y asumir la pérdida.
+2. Huésped llega con una reserva confirmada, pero el hotel está en situación de overbooking.
+a. A) Derivarlo a un hotel de igual o mayor categoría cercano, cubriendo los gastos de traslado y diferencia de tarifa.
+b. B) Ofrecerle dormir en una cama supletoria en una sala de reuniones.
+c. C) Cancelar la reserva en el momento indicando que fue un error del sistema.
+3. Queja por ruidos molestos en la habitación contigua a las 3:00 AM.
+a. A) Enviar a seguridad/recepción a solicitar silencio a la habitación ruidosa; si persiste, reubicar al huésped afectado o desalojar al infractor.
+b. B) Llamar por teléfono a la habitación ruidosa una sola vez y no hacer seguimiento.
+c. C) Decirle al huésped que se queja que el hotel está lleno y no se puede hacer nada hasta la mañana.
+4. Huésped extranjero no habla español ni inglés, y hay un problema con su tarjeta de crédito.
+a. A) Utilizar un traductor digital en la tablet o teléfono del mostrador para explicar la situación y pedir otra forma de pago.
+b. B) Repetirle la misma frase en español pero en voz más alta.
+c. C) Cancelar el check-in inmediatamente.
+5. Cliente frecuente (Promotor histórico) exige un upgrade gratuito a la Suite, pero está ocupada.
+a. A) Explicar amablemente la ocupación, ofrecerle la mejor habitación disponible en su categoría y enviarle una amenidad de cortesía (vino o postre) para mantener la fidelización.
+b. B) Decirle que por políticas del hotel ya no se dan upgrades gratuitos.
+c. C) Darle el upgrade a una Suite que está bloqueada por mantenimiento.
+6. Llegada de un huésped 5 horas antes del horario oficial de check-in.
+a. A) Guardar su equipaje, ofrecerle acceso a las áreas comunes (piscina, restaurante) y priorizar la limpieza de su habitación.
+b. B) Cobrarle un día extra completo sin previo aviso.
+c. C) Negarle la entrada al edificio hasta que sea la hora.
+7. Discrepancia de tarifa: el huésped dice que la OTA le mostraba un precio menor al que figura en el sistema.
+a. A) Solicitar ver el voucher de confirmación de la OTA; si el error es del hotel/OTA, igualar la tarifa y gestionar el reclamo internamente luego.
+b. B) Obligar al huésped a pagar la tarifa del sistema y decirle que pelee él con la agencia.
+c. C) Cobrarle la tarifa menor pero reducirle los servicios (ej. quitarle el desayuno).
+8. Detección de un pasaporte vencido al momento de tomar los datos del check-in.
+a. A) Informar al huésped de la situación y solicitar otro documento de identidad válido (DNI, licencia de conducir según la legislación local).
+b. B) Ignorar el vencimiento y registrarlo igual para ahorrar tiempo.
+c. C) Amenazar al huésped con llamar a migraciones.
+9. Huésped reporta haber perdido su llave magnética y solicita un duplicado.
+a. A) Solicitar una identificación con foto para validar su identidad antes de emitir la nueva llave e invalidar la anterior.
+b. B) Entregarle la llave nueva inmediatamente con solo preguntar el número de habitación.
+c. C) Cobrarle una multa exorbitante antes de darle acceso a sus pertenencias.
+10. Se recibe una llamada de amenaza de bomba en el hotel.
+a. A) Mantener la calma, anotar todos los detalles posibles de la llamada, contactar a la policía inmediatamente y activar el protocolo de evacuación.
+b. B) Cortar el teléfono asumiendo que es una broma.
+c. C) Gritar en el lobby que hay una bomba, generando pánico masivo.
+11. Huésped reporta una alergia severa al maní después de que ya se le sirvió el plato.
+a. A) Retirar el plato inmediatamente, consultar con el chef sobre contaminación cruzada, preparar una nueva comida en un área segura e informar al gerente de turno.
+b. B) Quitar los restos de maní visibles del plato y devolvérselo.
+c. C) Decirle que debió avisar antes y cobrarle el plato completo.
+12. Demora de 50 minutos en un pedido de Room Service (el estándar es 25).
+a. A) Llamar al huésped para disculparse por el retraso, explicar brevemente el motivo, ofrecer un descuento o cortesía, y entregar el pedido lo antes posible.
+b. B) Entregar la comida fría sin decir nada y esperar que no se queje.
+c. C) Cancelar el pedido en la cocina para no arruinar las métricas de tiempo.
+13. Fuego descontrolado en la zona de la parrilla durante la preparación de un asado para un evento del hotel.
+a. A) Utilizar el extintor de clase K (para grasas/aceites) ubicado en la cocina, evacuar al personal cercano y notificar a mantenimiento.
+b. B) Tirar un balde de agua sobre la grasa hirviendo.
+c. C) Dejar que se apague solo mientras se atiende otra mesa.
+14. Quiebre de stock de un vino premium que un cliente VIP acaba de pedir.
+a. A) El sommelier o maître se acerca, se disculpa por la falta de stock y ofrece una alternativa de calidad superior al mismo precio del vino original.
+b. B) Traer un vino más barato sin avisar, esperando que el cliente no se dé cuenta.
+c. C) Decirle al cliente "no hay" y quedarse esperando que elija otro de la carta.
+15. Mesero derrama accidentalmente una copa de vino sobre la camisa del cliente.
+a. A) Disculparse inmediatamente, ofrecer asistencia con paños limpios, cubrir el costo de tintorería/lavandería y ofrecer el almuerzo o cena como cortesía.
+b. B) Darle servilletas de papel y alejarse rápidamente para evitar el enojo.
+c. C) Echarle la culpa al cliente por haberse movido de su silla.
+16. Falta de reposición en el buffet de desayuno en horario pico; los huéspedes hacen fila.
+a. A) Asignar un "runner" de la cocina exclusivo para reponer las bandejas críticas (huevos, pan, café) y ofrecer servicio de café a la mesa a los que esperan.
+b. B) Apagar las luces de una sección del buffet para que los huéspedes crean que ya cerró.
+c. C) Pedirle a la recepcionista que vaya a cocinar.
+17. Huésped se niega a firmar la cuenta del bar argumentando que le cobraron bebidas de más.
+a. A) Revisar la comanda con el camarero y el sistema de punto de venta; si hay duda razonable, anular el ítem en disputa para priorizar la satisfacción.
+b. B) Discutir a los gritos con el huésped en medio del salón.
+c. C) Descontar el dinero directamente del sueldo del mesero sin investigar.
+18. Proveedor de pescados y mariscos llega 4 horas tarde, afectando el menú del día.
+a. A) Modificar el "Plato del Día" rápidamente con insumos disponibles, reimprimir menús temporales o capacitar a los meseros para informar la nueva sugerencia.
+b. B) Servir pescado congelado de hace meses que estaba destinado a descarte.
+c. C) Cerrar el restaurante por falta de insumos.
+19. Vajilla de un banquete sale del lavavajillas industrial con restos de comida.
+a. A) Frenar el servicio, revisar los filtros y la temperatura de la máquina, y lavar manualmente todo el lote afectado antes de sacarlo al salón.
+b. B) Limpiar los restos con un trapo seco y emplatar igual.
+c. C) Servir la comida tapando la mancha con una hoja de lechuga.
+20. Cliente vegano se queja de que la única opción en la carta es una ensalada básica.
+a. A) El chef sale al salón, ofrece preparar un plato especial fuera de carta utilizando vegetales de estación, legumbres y cereales, y se toma nota para actualizar el menú.
+b. B) Explicarle que es un hotel de asado tradicional y que no se hacen excepciones.
+c. C) Servirle pasta con manteca diciéndole que es margarina vegetal.
