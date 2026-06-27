@@ -29,7 +29,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
 
   const fetchAreaUsers = async () => {
     try {
-      const res = await fetch('${import.meta.env.VITE_API_URL || `'}/api/hr/usuarios', { headers: { 'Authorization': `Bearer ${hrToken}` } });
+      const res = await fetch(`${API_URL}/api/hr/usuarios`, { headers: { 'Authorization': `Bearer ${hrToken}` } });
       if (res.ok) {
         const data = await res.json();
         setAreaUsers(data);
@@ -44,7 +44,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
   const handleCreateAreaUser = async (e) => {
     e.preventDefault();
     try {
-      const res = await fetch('${import.meta.env.VITE_API_URL || `'}/api/hr/usuarios', {
+      const res = await fetch(`${API_URL}/api/hr/usuarios`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hrToken}` },
         body: JSON.stringify(newAreaUser)
@@ -280,7 +280,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
   const handleCompare = async () => {
     const data = [];
     for (let emp of selectedForCompare) {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || `'}/api/hr/empleados/${emp.id}/analisis`, { headers: { 'Authorization': `Bearer ${hrToken}` }});
+      const res = await fetch(`${API_URL}/api/hr/empleados/${emp.id}/analisis`, { headers: { 'Authorization': `Bearer ${hrToken}` }});
       if (res.ok) {
         const d = await res.json();
         data.push({ emp, radar: d.ultimo_radar || [] });
@@ -292,7 +292,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
 
   const fetchEmpleados = async () => {
     try {
-      const res = await fetch('${import.meta.env.VITE_API_URL || `'}/api/hr/empleados', {
+      const res = await fetch(`${API_URL}/api/hr/empleados`, {
         headers: { 'Authorization': `Bearer ${hrToken}` }
       });
       if (res.ok) {
@@ -304,10 +304,10 @@ export default function HRDashboard({ hrToken, onLogout }) {
 
   const fetchDashboardData = async () => {
     try {
-      const resL = await fetch('${import.meta.env.VITE_API_URL || `'}/api/hr/leaderboard', { headers: { 'Authorization': `Bearer ${hrToken}` }});
+      const resL = await fetch(`${API_URL}/api/hr/leaderboard`, { headers: { 'Authorization': `Bearer ${hrToken}` }});
       if (resL.ok) setLeaderboard(await resL.json());
 
-      const resC = await fetch('${import.meta.env.VITE_API_URL || `'}/api/hr/config', { headers: { 'Authorization': `Bearer ${hrToken}` }});
+      const resC = await fetch(`${API_URL}/api/hr/config`, { headers: { 'Authorization': `Bearer ${hrToken}` }});
       if (resC.ok) {
          const cData = await resC.json();
          if (cData.brand_color) setConfig(cData);
@@ -323,7 +323,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
   const saveConfig = async (e) => {
     e.preventDefault();
     try {
-      await fetch('${import.meta.env.VITE_API_URL || `'}/api/hr/config', {
+      await fetch(`${API_URL}/api/hr/config`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hrToken}` },
         body: JSON.stringify(config)
@@ -341,7 +341,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
       formData.append('tipo_perfil', newTipo);
       if (newCv) formData.append('cv', newCv);
 
-      const res = await fetch('${import.meta.env.VITE_API_URL || `'}/api/hr/empleados/nuevo', {
+      const res = await fetch(`${API_URL}/api/hr/empleados/nuevo`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${hrToken}` },
         body: formData
@@ -357,7 +357,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
 
   const generateTrainingPlan = async () => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || `'}/api/hr/empleados/${selectedEmp.id}/plan_capacitacion`, {
+      const res = await fetch(`${API_URL}/api/hr/empleados/${selectedEmp.id}/plan_capacitacion`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${hrToken}` }
       });
@@ -373,7 +373,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
     setSelectedEmp(empleados.find(e => e.id === empId));
     setAnalisis(null);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || `'}/api/hr/empleados/${empId}/analisis`, {
+      const res = await fetch(`${API_URL}/api/hr/empleados/${empId}/analisis`, {
         headers: { 'Authorization': `Bearer ${hrToken}` }
       });
       if (res.ok) {

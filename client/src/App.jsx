@@ -5,7 +5,7 @@ import * as Icons from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import HRDashboard from './components/HRDashboard';
 
-const socket = io(`');
+const socket = io(API_URL);
 
 function App() {
   const [roomCode, setRoomCode] = useState(() => Math.random().toString(36).substring(2, 8).toUpperCase());
@@ -61,7 +61,7 @@ function App() {
       }
     } catch(e) {}
 
-    fetch(`/api/hr/invite/${uuid}`)
+    fetch(`${API_URL}/api/hr/invite/${uuid}`)
       .then(res => res.json())
       .then(data => {
         if (!data.error) {
@@ -73,7 +73,7 @@ function App() {
              document.documentElement.style.setProperty('--brand-primary', data.brand_color);
           }
           
-          fetch(`/api/hr/invite/${uuid}/capsules`)
+          fetch(`${API_URL}/api/hr/invite/${uuid}/capsules`)
             .then(res => res.json())
             .then(caps => setCapsules(caps || []))
             .catch(console.error);
@@ -118,7 +118,7 @@ function App() {
 
   const handleHRLogin = async () => {
     try {
-      const res = await fetch(`/api/hr/login', {
+      const res = await fetch(`${API_URL}/api/hr/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: hrEmail, password: hrPassword })
@@ -140,7 +140,7 @@ function App() {
 
   const fetchHREvaluations = async (token) => {
     try {
-      const res = await fetch(`/api/hr/evaluaciones', {
+      const res = await fetch(`${API_URL}/api/hr/evaluaciones`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
