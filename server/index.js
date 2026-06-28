@@ -48,7 +48,7 @@ app.post('/api/hr/login', async (req, res) => {
       const match = await bcrypt.compare(password, empresa.password_hash);
       if (match) {
         const token = jwt.sign({ id: empresa.id, nombre: empresa.nombre, rol: 'admin' }, JWT_SECRET, { expiresIn: '1d' });
-        return res.json({ token, empresa: { id: empresa.id, nombre: empresa.nombre, rol: 'admin' } });
+        return res.json({ token, empresa: { id: empresa.id, nombre: empresa.nombre, rol: 'admin', profile_image: empresa.profile_image } });
       }
     }
     
@@ -58,7 +58,7 @@ app.post('/api/hr/login', async (req, res) => {
       const match = await bcrypt.compare(password, usuario.password_hash);
       if (match) { 
         const token = jwt.sign({ id: usuario.empresa_id, user_id: usuario.id, nombre: usuario.nombre, rol: 'area_manager', area_asignada: usuario.area_asignada }, JWT_SECRET, { expiresIn: '1d' });
-        return res.json({ token, empresa: { id: usuario.id, nombre: usuario.nombre, rol: 'area_manager', area_asignada: usuario.area_asignada } });
+        return res.json({ token, empresa: { id: usuario.id, nombre: usuario.nombre, rol: 'area_manager', area_asignada: usuario.area_asignada, profile_image: usuario.profile_image } });
       }
     }
 
@@ -383,9 +383,93 @@ app.post('/api/hr/usuarios', verifyToken, async (req, res) => {
 app.get('/api/hr/usuarios', verifyToken, async (req, res) => {
   if (req.empresa.rol === 'area_manager') return res.status(403).json({ error: 'Prohibido' });
   try {
-    const { rows } = await db.query('SELECT id, nombre, email, area_asignada FROM usuarios_area WHERE empresa_id = $1', [req.empresa.id]);
+    const { rows } = await db.query('SELECT id, nombre, email, area_asignada, profile_image FROM usuarios_area WHERE empresa_id = $1', [req.empresa.id]);
     res.json(rows);
   } catch (err) {
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.put('/api/hr/usuarios/:id', verifyToken, async (req, res) => {
+  if (req.empresa.rol === 'area_manager') return res.status(403).json({ error: 'Prohibido' });
+  const { nombre, email, password, area_asignada } = req.body;
+  try {
+    const fields = [];
+    const values = [];
+    let query = 'UPDATE usuarios_area SET ';
+    
+    if (nombre) { values.push(nombre); fields.push(`nombre = $${values.length}`); }
+    if (email) { values.push(email); fields.push(`email = $${values.length}`); }
+    if (area_asignada) { values.push(area_asignada); fields.push(`area_asignada = $${values.length}`); }
+    if (password) { 
+      const hash = await bcrypt.hash(password, 10);
+      values.push(hash); fields.push(`password_hash = $${values.length}`);
+    }
+    
+    if (fields.length === 0) return res.json({ success: true });
+    
+    values.push(req.params.id);
+    values.push(req.empresa.id);
+    query += fields.join(', ') + ` WHERE id = $${values.length - 1} AND empresa_id = $${values.length}`;
+    
+    await db.query(query, values);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.get('/api/hr/profile', verifyToken, async (req, res) => {
+  try {
+    if (req.empresa.rol === 'admin') {
+      const { rows } = await db.query('SELECT nombre, email_contacto as email, profile_image FROM empresas WHERE id = $1', [req.empresa.id]);
+      res.json(rows[0] || {});
+    } else {
+      const { rows } = await db.query('SELECT nombre, email, area_asignada, profile_image FROM usuarios_area WHERE id = $1 AND empresa_id = $2', [req.empresa.user_id, req.empresa.id]);
+      res.json(rows[0] || {});
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Error del servidor' });
+  }
+});
+
+app.put('/api/hr/profile', verifyToken, upload.single('profile_image'), async (req, res) => {
+  const { nombre, password } = req.body;
+  let profile_image = null;
+  
+  if (req.file) {
+    const base64Image = req.file.buffer.toString('base64');
+    profile_image = `data:${req.file.mimetype};base64,${base64Image}`;
+  }
+
+  try {
+    const fields = [];
+    const values = [];
+    let query = '';
+    
+    if (nombre) { values.push(nombre); fields.push(`nombre = $${values.length}`); }
+    if (profile_image) { values.push(profile_image); fields.push(`profile_image = $${values.length}`); }
+    if (password) { 
+      const hash = await bcrypt.hash(password, 10);
+      values.push(hash); fields.push(`password_hash = $${values.length}`);
+    }
+    
+    if (fields.length === 0) return res.json({ success: true, profile_image });
+
+    if (req.empresa.rol === 'admin') {
+      values.push(req.empresa.id);
+      query = `UPDATE empresas SET ${fields.join(', ')} WHERE id = $${values.length}`;
+    } else {
+      values.push(req.empresa.user_id);
+      values.push(req.empresa.id);
+      query = `UPDATE usuarios_area SET ${fields.join(', ')} WHERE id = $${values.length - 1} AND empresa_id = $${values.length}`;
+    }
+    
+    await db.query(query, values);
+    res.json({ success: true, profile_image });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
   }
 });

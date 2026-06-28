@@ -14,6 +14,8 @@ export default function HRDashboard({ hrToken, onLogout }) {
   // Tabs: 'general', 'config'
   const [currentTab, setCurrentTab] = useState('general');
   const [leaderboard, setLeaderboard] = useState([]);
+    const [profileData, setProfileData] = useState({ nombre: '', password: '', profile_image: null, file: null });
+  const [editingUser, setEditingUser] = useState(null);
   const [config, setConfig] = useState({ brand_color: '#C5A059', logo_url: '', slack_webhook_url: '' });
   
   // New employee form state
@@ -26,6 +28,56 @@ export default function HRDashboard({ hrToken, onLogout }) {
   // Area Managers state
   const [areaUsers, setAreaUsers] = useState([]);
   const [newAreaUser, setNewAreaUser] = useState({ nombre: '', email: '', password: '', area_asignada: 'Front Desk' });
+
+    const fetchProfile = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/hr/profile`, { headers: { 'Authorization': `Bearer ${hrToken}` } });
+      if (res.ok) {
+        const data = await res.json();
+        setProfileData({ nombre: data.nombre || '', password: '', profile_image: data.profile_image || null, file: null });
+      }
+    } catch (err) {}
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, [hrToken]);
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const formData = new FormData();
+      if (profileData.nombre) formData.append('nombre', profileData.nombre);
+      if (profileData.password) formData.append('password', profileData.password);
+      if (profileData.file) formData.append('profile_image', profileData.file);
+      
+      const res = await fetch(`${API_URL}/api/hr/profile`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${hrToken}` },
+        body: formData
+      });
+      if (res.ok) {
+        alert(t('profileUpdated') || 'Perfil actualizado correctamente');
+        fetchProfile();
+      }
+    } catch(err) {}
+  };
+
+  const handleUpdateAreaUser = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/api/hr/usuarios/${editingUser.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${hrToken}` },
+        body: JSON.stringify(editingUser)
+      });
+      if (res.ok) {
+        alert('Usuario actualizado');
+        setEditingUser(null);
+        fetchAreaUsers();
+      }
+    } catch(err){}
+  };
 
   const fetchAreaUsers = async () => {
     try {
@@ -455,7 +507,14 @@ export default function HRDashboard({ hrToken, onLogout }) {
         </div>
         {userRole === 'admin' && (
           <>
-            <div onClick={() => setCurrentTab('config')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'config' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
+            
+        <div onClick={() => setCurrentTab('perfil')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'perfil' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <Icons.User size={24} color={currentTab === 'perfil' ? '#FFF' : '#A0AEC0'} />
+            <span style={{ color: currentTab === 'perfil' ? '#FFF' : '#A0AEC0', fontWeight: currentTab === 'perfil' ? 'bold' : 'normal' }}>Mi Perfil</span>
+          </div>
+        </div>
+        <div onClick={() => setCurrentTab('config')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'config' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
               {t('config')}
             </div>
             <div onClick={() => setCurrentTab('accesos')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'accesos' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
@@ -927,6 +986,50 @@ export default function HRDashboard({ hrToken, onLogout }) {
           </div>
         )}
 
+        {currentTab === 'perfil' && (
+          <div>
+            <h1 style={{ color: textTheme, marginBottom: '20px' }}>Mi Perfil</h1>
+            <p style={{ color: '#718096', marginBottom: '40px' }}>Actualiza tus datos personales, contraseña y foto de perfil.</p>
+            
+            <div style={{ background: cardTheme, padding: '30px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', border: `1px solid ${cardBorder}`, maxWidth: '600px' }}>
+              <form onSubmit={handleUpdateProfile}>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '30px' }}>
+                  {profileData.profile_image ? (
+                    <img src={profileData.profile_image} alt="Perfil" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: `2px solid var(--brand-primary)` }} />
+                  ) : (
+                    <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#EDF2F7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icons.User size={40} color="#A0AEC0" />
+                    </div>
+                  )}
+                  <div>
+                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: textTheme }}>Foto de Perfil</label>
+                    <input type="file" accept="image/*" onChange={e => {
+                      if (e.target.files && e.target.files[0]) {
+                        setProfileData({...profileData, file: e.target.files[0], profile_image: URL.createObjectURL(e.target.files[0])});
+                      }
+                    }} style={{ fontSize: '0.9em' }} />
+                  </div>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: textTheme }}>Nombre</label>
+                  <input type="text" value={profileData.nombre} onChange={e => setProfileData({...profileData, nombre: e.target.value})} style={{ width: '100%', padding: '12px', border: `1px solid ${cardBorder}`, borderRadius: '6px', boxSizing: 'border-box', background: bgTheme, color: textTheme }} />
+                </div>
+                
+                <div style={{ marginBottom: '30px' }}>
+                  <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: textTheme }}>Nueva Contraseña (opcional)</label>
+                  <input type="password" placeholder="Dejar en blanco para no cambiar" value={profileData.password} onChange={e => setProfileData({...profileData, password: e.target.value})} style={{ width: '100%', padding: '12px', border: `1px solid ${cardBorder}`, borderRadius: '6px', boxSizing: 'border-box', background: bgTheme, color: textTheme }} />
+                </div>
+                
+                <button type="submit" style={{ padding: '14px 28px', backgroundColor: '#2D3748', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', width: '100%' }}>
+                  Guardar Perfil
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
         {currentTab === 'config' && (
           <div>
             <h1 style={{ color: textTheme, marginBottom: '20px' }}>{t('configTitle')}</h1>
@@ -1004,14 +1107,37 @@ export default function HRDashboard({ hrToken, onLogout }) {
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                     {areaUsers.map(u => (
-                      <div key={u.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', border: `1px solid ${cardBorder}`, borderRadius: '8px', background: bgTheme }}>
-                        <div>
-                          <div style={{ fontWeight: 'bold', color: textTheme }}>{u.nombre}</div>
-                          <div style={{ color: '#718096', fontSize: '0.9em' }}>{u.email}</div>
+                      <div key={u.id} style={{ padding: '15px', border: `1px solid ${cardBorder}`, borderRadius: '8px', background: bgTheme, marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <div style={{ fontWeight: 'bold', color: textTheme }}>{u.nombre}</div>
+                            <div style={{ color: '#718096', fontSize: '0.9em' }}>{u.email}</div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ padding: '6px 12px', background: 'var(--brand-primary)', color: 'white', borderRadius: '20px', fontSize: '0.85em', fontWeight: 'bold' }}>
+                              {u.area_asignada}
+                            </div>
+                            <button onClick={() => setEditingUser(u)} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '5px' }}>
+                              <Icons.Settings size={18} color="#718096" />
+                            </button>
+                          </div>
                         </div>
-                        <div style={{ padding: '6px 12px', background: 'var(--brand-primary)', color: 'white', borderRadius: '20px', fontSize: '0.85em', fontWeight: 'bold' }}>
-                          {u.area_asignada}
-                        </div>
+                        {editingUser && editingUser.id === u.id && (
+                          <form onSubmit={handleUpdateAreaUser} style={{ marginTop: '15px', padding: '15px', background: 'rgba(0,0,0,0.02)', borderRadius: '8px' }}>
+                            <div style={{ marginBottom: '10px' }}>
+                              <label style={{ display: 'block', fontSize: '0.85em', color: textTheme }}>Nombre</label>
+                              <input type="text" value={editingUser.nombre} onChange={e => setEditingUser({...editingUser, nombre: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: `1px solid ${cardBorder}` }} />
+                            </div>
+                            <div style={{ marginBottom: '10px' }}>
+                              <label style={{ display: 'block', fontSize: '0.85em', color: textTheme }}>Nueva Contraseña (dejar en blanco para no cambiar)</label>
+                              <input type="password" value={editingUser.password || ''} onChange={e => setEditingUser({...editingUser, password: e.target.value})} style={{ width: '100%', padding: '8px', borderRadius: '4px', border: `1px solid ${cardBorder}` }} />
+                            </div>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button type="submit" style={{ padding: '8px 16px', background: 'var(--brand-primary)', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Guardar</button>
+                              <button type="button" onClick={() => setEditingUser(null)} style={{ padding: '8px 16px', background: '#E2E8F0', color: '#4A5568', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>Cancelar</button>
+                            </div>
+                          </form>
+                        )}
                       </div>
                     ))}
                   </div>
