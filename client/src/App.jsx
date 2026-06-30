@@ -156,8 +156,8 @@ function App() {
     }
   }, [currentView, hrToken]);
 
-  const openSituation = (card, department) => {
-    if (myPlayer && !card.resolved && gameState?.gameState?.phase === 'check_in') {
+  const handleSituationClick = (card, department) => {
+    if (myPlayer && !card.resolved && !card.resolving && gameState?.gameState?.phase === 'check_in') {
       setActiveSituation({ ...card, department });
       setTextAnswer('');
     }

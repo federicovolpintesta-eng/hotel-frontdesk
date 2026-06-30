@@ -267,7 +267,7 @@ app.get('/api/hr/empleados/:id/analisis', verifyToken, async (req, res) => {
     const avgEmp = Math.round(sumEmp / evalRows.length);
     const avgNps = Math.round(sumNps / evalRows.length);
 
-    res.json({
+    const responsePayload = {
       historial: evalRows,
       ultimo_radar: [
         { subject: 'Resolución', Última: latest.resolucion_pct, Promedio: avgRes, fullMark: 100 },
@@ -279,10 +279,13 @@ app.get('/api/hr/empleados/:id/analisis', verifyToken, async (req, res) => {
       latestMetrics: { nps: latest.nps_global, analisis: latest.analisis_pct, empatia: latest.empatia_pct },
       personalityProfile: latest.personality_profile,
       audioBase64: latest.audio_base64,
+      respuestas_detalle: latest.respuestas_detalle || [],
       cv_summary: empData.cv_summary,
       interview_questions: empData.interview_questions ? (typeof empData.interview_questions === 'string' ? JSON.parse(empData.interview_questions) : empData.interview_questions) : null,
       training_plan: empData.training_plan
-    });
+    };
+    console.log('Sending analisis for', empId, 'respuestas_detalle:', responsePayload.respuestas_detalle);
+    res.json(responsePayload);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Error del servidor' });
@@ -670,10 +673,12 @@ const saveGameToDB = async (room) => {
     }
     empId = empRes.rows[0].id;
     
+    const respuestasDetalleJson = JSON.stringify(p.feedbacks || []);
+
     await db.query(`
-      INSERT INTO evaluaciones (empleado_id, nps_global, resolucion_pct, analisis_pct, empatia_pct, rol_evaluado, feedback_generado, proxima_evaluacion, personality_profile, audio_base64)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE + INTERVAL '2 months', $8, $9)
-    `, [empId, nps, resPct, anaPct, empPct, p.character.role, recommendation, personalityProfile, p.audioBase64 || null]);
+      INSERT INTO evaluaciones (empleado_id, nps_global, resolucion_pct, analisis_pct, empatia_pct, rol_evaluado, feedback_generado, proxima_evaluacion, personality_profile, audio_base64, respuestas_detalle)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_DATE + INTERVAL '2 months', $8, $9, $10)
+    `, [empId, nps, resPct, anaPct, empPct, p.character.role, recommendation, personalityProfile, p.audioBase64 || null, respuestasDetalleJson]);
     
     // Slack Integration
     const configRes = await db.query('SELECT slack_webhook_url FROM empresas WHERE id = 1');
@@ -735,22 +740,31 @@ const startTurn = (roomCode) => {
   }
   
   targetDepartments.forEach(dep => {
-    room.gameState.departments[dep] = [];
+    if (!room.gameState.departments[dep]) {
+      room.gameState.departments[dep] = [];
+    } else {
+      room.gameState.departments[dep] = room.gameState.departments[dep].filter(s => !s.resolved);
+    }
   });
 
-  // Generate 1-2 situations per targeted department randomly
+  // Generate new situations per targeted department randomly
   targetDepartments.forEach(dep => {
     let depSituations = allSituations.filter(s => s.department === dep && !room.usedSituations.has(s.description));
     
+    const currentCount = room.gameState.departments[dep].length;
+    let numToSpawn = 5 - currentCount;
+    // Don't spawn more than 2 per turn after the first turn to prevent exhausting the DB and overwhelming the player
+    if (numToSpawn > 2 && room.gameState.turn > 1) {
+       numToSpawn = 2;
+    }
+    
     // If exhausted, reset used situations for this department
-    if (depSituations.length < 5) {
+    if (depSituations.length < numToSpawn) {
       allSituations.filter(s => s.department === dep).forEach(s => room.usedSituations.delete(s.description));
       depSituations = allSituations.filter(s => s.department === dep);
     }
 
-    const numSituations = 5; // Always 5 per active department to match the 5 meeples
-    
-    for(let i=0; i<numSituations; i++) {
+    for(let i=0; i<numToSpawn; i++) {
       // Re-filter to avoid picking the same description we just picked in this loop
       depSituations = depSituations.filter(s => !room.usedSituations.has(s.description));
       if (depSituations.length === 0) break;
@@ -835,7 +849,7 @@ const endTurn = (roomCode) => {
     list.forEach(c => { if(!c.resolved) unassignedCount++; });
   });
 
-  room.gameState.nps -= (unassignedCount * 5);
+  room.gameState.nps -= (unassignedCount * 2); // Reduced from 5 to 2 to make 100% achievable but challenging
 
   if (room.gameState.nps <= 0) {
     room.gameState.nps = 0;
@@ -967,6 +981,10 @@ io.on('connection', (socket) => {
       let chosenOption = null;
 
       if (originalSit.isOpenEnded || originalSit.isAudioResponse) {
+        // Emit intermediate pending state so the UI colors it immediately or shows loading
+        clientSit.resolving = true;
+        io.to(roomCode).emit('room_state_update', room);
+
         let aiResult = null;
         try {
           if (process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'ingresa_tu_clave_gratuita_aqui') {
@@ -1053,25 +1071,28 @@ Devuelve tu evaluación en formato JSON estricto siguiendo este esquema exacto:
       player.metrics.totalAnswered += 1;
       
       // Store feedback
-      if (chosenOption.feedback) {
-        player.feedbacks.push({
-           department: department,
-           question: clientSit.description,
-           choice: originalSit.isAudioResponse ? "[Respuesta de Audio Registrada]" : chosenOption.text,
-           feedback: chosenOption.feedback,
-           effectiveness: chosenOption.effectiveness
-        });
-      }
+      let defaultFeedback = "Opción seleccionada.";
+      if (chosenOption.effectiveness === 100) defaultFeedback = "Resolución ideal según el protocolo.";
+      else if (chosenOption.effectiveness >= 50) defaultFeedback = "Resolución aceptable pero mejorable.";
+      else defaultFeedback = "Decisión subóptima. Requiere mejora.";
+
+      player.feedbacks.push({
+         department: department,
+         question: clientSit.description,
+         choice: originalSit.isAudioResponse ? "[Respuesta de Audio Registrada]" : chosenOption.text,
+         feedback: chosenOption.feedback || defaultFeedback,
+         effectiveness: chosenOption.effectiveness || 0
+      });
 
       if (audioBase64) {
         player.audioBase64 = audioBase64;
       }
 
       // NPS Impact based on effectiveness
-      let penalty = 5;
-      let reward = 2;
-      if (room.difficulty === 'hard') { penalty = 10; reward = 1; }
-      else if (room.difficulty === 'easy') { penalty = 2; reward = 4; }
+      let penalty = 3; // Reduced from 5
+      let reward = 4;  // Increased from 2 to allow climbing to 100%
+      if (room.difficulty === 'hard') { penalty = 7; reward = 2; }
+      else if (room.difficulty === 'easy') { penalty = 1; reward = 6; }
 
       if (chosenOption.effectiveness === 100) {
         room.gameState.nps = Math.min(100, room.gameState.nps + reward);
@@ -1079,6 +1100,7 @@ Devuelve tu evaluación en formato JSON estricto siguiendo este esquema exacto:
         room.gameState.nps -= penalty;
       }
 
+      clientSit.resolving = false;
       clientSit.resolved = true;
       clientSit.assigned = 1;
 

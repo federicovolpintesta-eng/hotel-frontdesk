@@ -1,20 +1,99 @@
 const API_URL = import.meta.env.VITE_API_URL || 'https://caosfrontdesk-backend.onrender.com';
 import React, { useState, useEffect } from 'react';
-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
+import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import jsPDF from 'jspdf';
+import { io } from 'socket.io-client';
 import html2canvas from 'html2canvas';
+
+const DecisionItem = ({ res, index }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <div style={{ border: '1px solid #E2E8F0', borderRadius: '12px', overflow: 'hidden', background: isOpen ? '#F7FAFC' : 'white', transition: 'all 0.2s' }}>
+      <div 
+        onClick={() => setIsOpen(!isOpen)} 
+        style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1 }}>
+          <div style={{ background: '#EDF2F7', color: '#4A5568', width: '28px', height: '28px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '0.8rem', flexShrink: 0 }}>
+            {index + 1}
+          </div>
+          <p style={{ margin: 0, fontSize: '0.95rem', color: '#2D3748', fontWeight: '500', lineHeight: '1.4' }}>{res.question}</p>
+        </div>
+        <Icons.ChevronDown size={20} color="#A0AEC0" style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
+      </div>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+          >
+            <div style={{ padding: '0 16px 16px 56px' }}>
+              <div style={{ marginBottom: '16px' }}>
+                <p style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold' }}>Respuesta del Colaborador</p>
+                <div style={{ background: 'white', padding: '12px', borderRadius: '8px', border: '1px solid #E2E8F0', color: '#4A5568', fontSize: '0.9rem', lineHeight: '1.5' }}>
+                  {res.choice}
+                </div>
+              </div>
+              <div>
+                <p style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  Evaluación IA 
+                  <span style={{ padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', background: res.effectiveness >= 80 ? '#C6F6D5' : res.effectiveness >= 50 ? '#FEFCBF' : '#FED7D7', color: res.effectiveness >= 80 ? '#22543D' : res.effectiveness >= 50 ? '#744210' : '#822727' }}>
+                    {res.effectiveness}% Eficacia
+                  </span>
+                </p>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start', background: res.effectiveness >= 80 ? '#F0FFF4' : res.effectiveness >= 50 ? '#FFFFF0' : '#FFF5F5', padding: '12px', borderRadius: '8px', border: `1px solid ${res.effectiveness >= 80 ? '#C6F6D5' : res.effectiveness >= 50 ? '#FEFCBF' : '#FED7D7'}` }}>
+                  {res.effectiveness >= 80 ? <Icons.CheckCircle size={18} color="#38A169" style={{ marginTop: '2px' }} /> : res.effectiveness >= 50 ? <Icons.AlertTriangle size={18} color="#D69E2E" style={{ marginTop: '2px' }} /> : <Icons.XCircle size={18} color="#E53E3E" style={{ marginTop: '2px' }} />}
+                  <p style={{ margin: 0, fontSize: '0.9rem', color: res.effectiveness >= 80 ? '#276749' : res.effectiveness >= 50 ? '#975A16' : '#C53030', lineHeight: '1.5' }}>
+                    {res.feedback}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+const ProCard = ({ icon: Icon, title, children, noPadding = false }) => (
+  <div style={{ padding: noPadding ? '0' : '24px', background: 'white', borderRadius: '12px', border: '1px solid #E2E8F0', marginBottom: '24px', boxShadow: '0 2px 6px rgba(0,0,0,0.02)' }}>
+    {title && (
+      <div style={{ padding: noPadding ? '24px 24px 0 24px' : '0' }}>
+        <h4 style={{ margin: '0 0 16px 0', color: '#1A202C', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.1rem', fontWeight: 'bold' }}>
+          {Icon && <Icon size={20} color="#718096" />} {title}
+        </h4>
+      </div>
+    )}
+    <div style={{ padding: noPadding ? '0 24px 24px 24px' : '0', color: '#4A5568', fontSize: '0.95rem', lineHeight: '1.6' }}>
+      {children}
+    </div>
+  </div>
+);
 
 export default function HRDashboard({ hrToken, onLogout }) {
   const [empleados, setEmpleados] = useState([]);
   const [selectedEmp, setSelectedEmp] = useState(null);
   const [analisis, setAnalisis] = useState(null);
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   
+  // Search and Filter State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterRole, setFilterRole] = useState('Todos');
+  const [filterType, setFilterType] = useState('Todos');
+  const [showHistory, setShowHistory] = useState(false);
+  const [columnOverrides, setColumnOverrides] = useState({});
+  const [draggedItem, setDraggedItem] = useState(null);
+  const [leaderRatings, setLeaderRatings] = useState({});
   // Tabs: 'general', 'config'
   const [currentTab, setCurrentTab] = useState('general');
   const [leaderboard, setLeaderboard] = useState([]);
     const [profileData, setProfileData] = useState({ nombre: '', password: '', profile_image: null, file: null });
+  const [showProfilePicModal, setShowProfilePicModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [config, setConfig] = useState({ brand_color: '#C5A059', logo_url: '', slack_webhook_url: '' });
   
@@ -59,6 +138,25 @@ export default function HRDashboard({ hrToken, onLogout }) {
       if (res.ok) {
         alert(t('profileUpdated') || 'Perfil actualizado correctamente');
         fetchProfile();
+      }
+    } catch(err) {}
+  };
+
+  const handleQuickProfileUpdate = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const formData = new FormData();
+      formData.append('profile_image', file);
+      const res = await fetch(`${API_URL}/api/hr/profile`, {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${hrToken}` },
+        body: formData
+      });
+      if (res.ok) {
+        fetchProfile();
+        setShowProfilePicModal(false);
+        alert(t('profileUpdated') || 'Foto actualizada correctamente');
       }
     } catch(err) {}
   };
@@ -206,6 +304,16 @@ export default function HRDashboard({ hrToken, onLogout }) {
       cultureFit: "Culture Fit Score (Match)",
       cultureFitDesc: "Medición de alineación con los valores Core del hotel (Agilidad, Empatía y Protocolo).",
       quadrant: "Cuadrante",
+      noRecords: "Sin registros",
+      searchPlaceholder: "Buscar por nombre o ID...",
+      allRoles: "Todos los roles",
+      allTypes: "Todos los tipos",
+      candidates: "Candidatos",
+      staffMembers: "Efectivos",
+      exportCSV: "Exportar CSV",
+      historicalEvolution: "Evolución Histórica",
+      leaderFeedback: "Feedback del Líder (360°)",
+      aiPotential: "Potencial IA",
       nineBoxDict: {
         'Enigma': 'Enigma',
         'High Potential': 'Alto Potencial',
@@ -289,7 +397,17 @@ export default function HRDashboard({ hrToken, onLogout }) {
       audioDesc: "Listen to the candidate's real response under pressure.",
       cultureFit: "Culture Fit Score (Match)",
       cultureFitDesc: "Measures alignment with the hotel's Core values (Agility, Empathy, and Protocol).",
-      quadrant: "Quadrant"
+      quadrant: "Quadrant",
+      noRecords: "No records",
+      searchPlaceholder: "Search by name or ID...",
+      allRoles: "All roles",
+      allTypes: "All types",
+      candidates: "Candidates",
+      staffMembers: "Staff members",
+      exportCSV: "Export CSV",
+      historicalEvolution: "Historical Evolution",
+      leaderFeedback: "Leader Feedback (360°)",
+      aiPotential: "AI Potential"
     }
   };
   const t = (key) => dict[lang][key] || key;
@@ -368,9 +486,48 @@ export default function HRDashboard({ hrToken, onLogout }) {
   };
 
   useEffect(() => {
-    fetchEmpleados();
-    fetchDashboardData();
+    const loadAll = async () => {
+      setIsDashboardLoading(true);
+      await fetchEmpleados();
+      await fetchDashboardData();
+      setIsDashboardLoading(false);
+    };
+    loadAll();
+    
+    const socketUrl = API_URL;
+    const socket = io(socketUrl);
+    
+    socket.on('evaluacion_completada', () => fetchEmpleados());
+    socket.on('new_employee', () => fetchEmpleados());
+    
+    return () => socket.disconnect();
   }, [hrToken]);
+  
+  const exportToCSV = () => {
+    if (filteredEmpleados.length === 0) return alert('No hay datos para exportar.');
+    
+    const headers = ['ID', 'Nombre', 'Rol', 'Tipo Perfil', 'NPS', 'Riesgo Fuga', 'Riesgo Burnout'];
+    const rows = filteredEmpleados.map(e => [
+      e.id, 
+      e.nombre, 
+      e.rol, 
+      e.tipo_perfil, 
+      Math.round(e.promedio_nps || 0), 
+      e.attritionRisk ? 'Si' : 'No', 
+      e.burnoutRisk ? 'Si' : 'No'
+    ]);
+    
+    const csvContent = 'data:text/csv;charset=utf-8,' 
+      + [headers.join(','), ...rows.map(e => e.join(','))].join('\\n');
+      
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', 'pipeline_empleados.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const saveConfig = async (e) => {
     e.preventDefault();
@@ -425,7 +582,8 @@ export default function HRDashboard({ hrToken, onLogout }) {
     setSelectedEmp(empleados.find(e => e.id === empId));
     setAnalisis(null);
     try {
-      const res = await fetch(`${API_URL}/api/hr/empleados/${empId}/analisis`, {
+      const timestamp = new Date().getTime();
+      const res = await fetch(`${API_URL}/api/hr/empleados/${empId}/analisis?t=${timestamp}`, {
         headers: { 'Authorization': `Bearer ${hrToken}` }
       });
       if (res.ok) {
@@ -476,58 +634,136 @@ export default function HRDashboard({ hrToken, onLogout }) {
     pdf.save(`Reporte_${selectedEmp.nombre}.pdf`);
   };
 
+  const filteredEmpleados = empleados.filter(e => {
+    const searchVal = searchTerm.toLowerCase();
+    const matchesSearch = e.nombre.toLowerCase().includes(searchVal) || (e.uuid_evaluacion && e.uuid_evaluacion.includes(searchVal));
+    const matchesRole = filterRole === 'Todos' || e.rol === filterRole;
+    const matchesType = filterType === 'Todos' || e.tipo_perfil === filterType;
+    return matchesSearch && matchesRole && matchesType;
+  });
+
+  const handleDragStart = (e, item) => {
+    setDraggedItem(item);
+  };
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+  const handleDrop = (e, columnId) => {
+    e.preventDefault();
+    if (draggedItem) {
+      setColumnOverrides({
+        ...columnOverrides,
+        [draggedItem.id]: columnId
+      });
+      setDraggedItem(null);
+    }
+  };
+
+  const getColumnData = (columnId) => {
+    return filteredEmpleados.filter(e => {
+      if (columnOverrides[e.id]) return columnOverrides[e.id] === columnId;
+      
+      switch(columnId) {
+        case 'pending': return e.promedio_nps === 0;
+        case 'attention': return e.burnoutRisk || e.attritionRisk;
+        case 'new': return e.promedio_nps > 0 && e.promedio_nps < 80 && !e.burnoutRisk && !e.attritionRisk;
+        case 'potential': return e.promedio_nps >= 80 && !e.burnoutRisk && !e.attritionRisk;
+        default: return false;
+      }
+    });
+  };
+
+  if (isDashboardLoading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+        <Icons.Loader size={48} color={config.brand_color || '#C5A059'} className="spin-animation" style={{ marginBottom: '20px' }} />
+        <h2 style={{ color: '#2D3748', fontFamily: 'serif', margin: '0 0 8px 0' }}>Cargando Panel de RRHH...</h2>
+        <p style={{ color: '#718096', margin: 0 }}>Sincronizando evaluaciones y simulaciones</p>
+      </div>
+    );
+  }
+
   return (
     <div className="responsive-dashboard" style={{ display: 'flex', minHeight: '100vh', backgroundColor: bgTheme, color: textTheme }}>
-      {/* Sidebar */}
-      <div className="responsive-sidebar" style={{ width: '280px', backgroundColor: theme === 'dark' ? '#111827' : '#2D3748', color: 'white', padding: '30px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px', background: 'white', padding: '16px', borderRadius: '12px', alignItems: 'center' }}>
-          <img src="/images/los-pinos.png" alt="Los Pinos" style={{ height: '40px', objectFit: 'contain' }} />
-          <div style={{ height: '1px', background: '#e2e8f0', width: '100%' }}></div>
-          <img src="/images/tremun.jpeg" alt="Tremun" style={{ height: '45px', objectFit: 'contain' }} />
-        </div>
+      {/* Sidebar Redesign Premium */}
+      <div className="responsive-sidebar" style={{ width: '280px', backgroundColor: theme === 'dark' ? '#0F172A' : '#1E293B', color: 'white', padding: '30px 20px', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 15px rgba(0,0,0,0.05)', zIndex: 10 }}>
         
-        <div style={{ padding: '0 10px 20px 10px', textAlign: 'center', color: 'white', fontSize: '1.1rem', fontWeight: 'bold' }}>
-          {t('welcome')}, {userName}
-        </div>
-        
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
-           <button onClick={() => setLang(lang === 'es' ? 'en' : 'es')} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer' }}>
-             {lang === 'es' ? '🇪🇸 ES' : '🇬🇧 EN'}
-           </button>
-           <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '4px', color: 'white', cursor: 'pointer' }}>
-             {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-           </button>
-        </div>
-
-        <div onClick={() => setCurrentTab('general')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'general' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
-          {t('overview')}
-        </div>
-        <div onClick={() => setCurrentTab('9box')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === '9box' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
-          {t('nineBox')}
-        </div>
-        {userRole === 'admin' && (
-          <>
-            
-        <div onClick={() => setCurrentTab('perfil')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'perfil' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <Icons.User size={24} color={currentTab === 'perfil' ? '#FFF' : '#A0AEC0'} />
-            <span style={{ color: currentTab === 'perfil' ? '#FFF' : '#A0AEC0', fontWeight: currentTab === 'perfil' ? 'bold' : 'normal' }}>Mi Perfil</span>
+        {/* User Profile Section */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '40px', paddingBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+          <div 
+            onClick={() => setShowProfilePicModal(true)}
+            style={{ position: 'relative', marginBottom: '16px', cursor: 'pointer', transition: 'transform 0.2s' }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            <img 
+              src={profileData?.profile_image && profileData.profile_image.trim() !== '' ? (profileData.profile_image.startsWith('data:') ? profileData.profile_image : `${API_URL}${profileData.profile_image.startsWith('/') ? '' : '/'}${profileData.profile_image}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || 'User')}&background=C5A059&color=fff&size=120`} 
+              alt="Profile" 
+              onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || 'User')}&background=C5A059&color=fff&size=120`; }}
+              style={{ width: '90px', height: '90px', borderRadius: '50%', objectFit: 'cover', border: '3px solid #C5A059', boxShadow: '0 4px 10px rgba(0,0,0,0.3)' }} 
+            />
+            <div style={{ position: 'absolute', bottom: '0', right: '0', width: '20px', height: '20px', background: '#48BB78', borderRadius: '50%', border: '3px solid #1E293B' }}></div>
+          </div>
+          <div style={{ fontSize: '0.9rem', color: '#CBD5E0', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>
+            {t('welcome')}
+          </div>
+          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'white', textAlign: 'center' }}>
+            {userName}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#94A3B8', marginTop: '4px' }}>
+            {userRole === 'admin' ? 'Administrador' : userArea}
           </div>
         </div>
-        <div onClick={() => setCurrentTab('config')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'config' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
-              {t('config')}
-            </div>
-            <div onClick={() => setCurrentTab('accesos')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'accesos' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
-              Gestión de Accesos
-            </div>
-          </>
-        )}
+        
+        {/* Navigation Menu */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+          <div onClick={() => setCurrentTab('general')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'general' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'general' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'general' ? '3px solid #C5A059' : '3px solid transparent' }}>
+            <Icons.LayoutDashboard size={20} />
+            <span style={{ fontWeight: currentTab === 'general' ? '600' : '400' }}>{t('overview')}</span>
+          </div>
+
+          <div onClick={() => setCurrentTab('9box')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === '9box' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === '9box' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === '9box' ? '3px solid #C5A059' : '3px solid transparent' }}>
+            <Icons.Grid size={20} />
+            <span style={{ fontWeight: currentTab === '9box' ? '600' : '400' }}>{t('nineBox')}</span>
+          </div>
+
+          {userRole === 'admin' && (
+            <>
+              <div onClick={() => setCurrentTab('perfil')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'perfil' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'perfil' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'perfil' ? '3px solid #C5A059' : '3px solid transparent' }}>
+                <Icons.User size={20} />
+                <span style={{ fontWeight: currentTab === 'perfil' ? '600' : '400' }}>Mi Perfil</span>
+              </div>
+              
+              <div onClick={() => setCurrentTab('config')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'config' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'config' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'config' ? '3px solid #C5A059' : '3px solid transparent' }}>
+                <Icons.Settings size={20} />
+                <span style={{ fontWeight: currentTab === 'config' ? '600' : '400' }}>{t('config')}</span>
+              </div>
+              
+              <div onClick={() => setCurrentTab('accesos')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'accesos' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'accesos' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'accesos' ? '3px solid #C5A059' : '3px solid transparent' }}>
+                <Icons.Shield size={20} />
+                <span style={{ fontWeight: currentTab === 'accesos' ? '600' : '400' }}>Accesos</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Global Settings & Logout */}
+        <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
+             <button onClick={() => setLang(lang === 'es' ? 'en' : 'es')} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#CBD5E0', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}>
+               <Icons.Globe size={14} /> {lang === 'es' ? 'EN' : 'ES'}
+             </button>
+             <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} style={{ flex: 1, padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '6px', color: '#CBD5E0', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', transition: 'background 0.2s' }}>
+               {theme === 'light' ? <Icons.Moon size={14} /> : <Icons.Sun size={14} />} {theme === 'light' ? 'Dark' : 'Light'}
+             </button>
+          </div>
 
         <button 
           onClick={onLogout}
-          style={{ marginTop: 'auto', background: 'transparent', border: '1px solid rgba(255,255,255,0.3)', color: 'white', padding: '10px', width: '100%', borderRadius: '8px', cursor: 'pointer' }}>
-          {t('logout')}
+          style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', color: '#FCA5A5', padding: '10px', width: '100%', borderRadius: '8px', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', transition: 'all 0.2s', fontWeight: 'bold' }}>
+          <Icons.LogOut size={18} /> {t('logout')}
         </button>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -588,15 +824,47 @@ export default function HRDashboard({ hrToken, onLogout }) {
         <div style={{ display: 'flex', gap: '32px' }}>
           {/* Listado Kanban */}
           <div style={{ flex: 1 }}>
-            <h3 style={{ marginTop: 0, marginBottom: '24px', color: textTheme }}>{t('pipeline')}</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+              <h3 style={{ margin: 0, color: textTheme }}>{t('pipeline')}</h3>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                <input 
+                  type="text" 
+                  placeholder={t('searchPlaceholder')} 
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: `1px solid ${cardBorder}`, background: bgTheme, color: textTheme }}
+                />
+                <select value={filterRole} onChange={(e) => setFilterRole(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: `1px solid ${cardBorder}`, background: bgTheme, color: textTheme }}>
+                  <option value="Todos">{t('allRoles')}</option>
+                  <option value="Front Desk">Front Desk</option>
+                  <option value="Housekeeping">Housekeeping</option>
+                  <option value="Mantenimiento">Mantenimiento</option>
+                  <option value="F&B">F&B</option>
+                  <option value="Cultura y Valores">Cultura y Valores</option>
+                </select>
+                <select value={filterType} onChange={(e) => setFilterType(e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: `1px solid ${cardBorder}`, background: bgTheme, color: textTheme }}>
+                  <option value="Todos">{t('allTypes')}</option>
+                  <option value="candidato">{t('candidates')}</option>
+                  <option value="efectivo">{t('staffMembers')}</option>
+                </select>
+                <button onClick={exportToCSV} className="btn-premium btn-ghost-gray" style={{ height: '38px' }}>
+                  <Icons.Download size={16} /> {t('exportCSV')}
+                </button>
+              </div>
+            </div>
             <div className="pipeline-container" style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '16px' }}>
               
               {/* Columna: Pendientes */}
-              <div className="pipeline-column" style={{ flex: 1, minWidth: '250px', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px', borderTop: '4px solid #CBD5E0' }}>
-                <h4 style={{ margin: '0 0 16px 0', color: '#A0AEC0' }}>{t('pending')}</h4>
-                {empleados.filter(e => e.promedio_nps === 0).length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>Sin registros</div>}
-                {empleados.filter(e => e.promedio_nps === 0).map(e => (
-                  <div key={e.id} style={{ background: 'white', padding: '16px', borderRadius: '8px', marginBottom: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
+                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'pending')}>
+                <h4 style={{ margin: '0 0 16px 0', color: '#A0AEC0', display: 'flex', alignItems: 'center' }}>
+                  <span className="status-dot" style={{ color: '#CBD5E0', background: 'currentColor' }}></span> {t('pending')}
+                </h4>
+                {getColumnData('pending').length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>{t('noRecords')}</div>}
+                {getColumnData('pending').map((e, index) => (
+                  <motion.div key={e.id} className="card-premium-light card-border-gray"
+                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
+                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <div style={{ fontWeight: 'bold', color: '#2D3748' }}>{e.nombre}</div>
                       <input type="checkbox" checked={!!selectedForCompare.find(s => s.id === e.id)} onChange={(evt) => toggleCompare(e, evt)} />
@@ -606,19 +874,24 @@ export default function HRDashboard({ hrToken, onLogout }) {
                       <span style={{ fontFamily: 'monospace' }}>ID: {e.uuid_evaluacion.split('-')[0]}...</span> <Icons.Copy size={12} />
                     </div>
                     <div style={{ display: 'flex', gap: '8px' }}>
-                      <button onClick={() => copyLink(e.uuid_evaluacion)} style={{ flex: 1, padding: '6px', background: '#EDF2F7', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><Icons.Copy size={14}/> {t('link')}</button>
-                      <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent('Hola! Aquí tienes el link para tu evaluación interactiva: http://localhost:5173/?invite=' + e.uuid_evaluacion)}`, '_blank')} style={{ flex: 1, padding: '6px', background: '#25D366', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><Icons.MessageCircle size={14}/> WhatsApp</button>
+                      <button onClick={() => copyLink(e.uuid_evaluacion)} className="btn-premium btn-ghost-gray" style={{ flex: 1 }}><Icons.Copy size={14}/> {t('link')}</button>
+                      <button onClick={() => window.open(`https://wa.me/?text=${encodeURIComponent('Hola! Aquí tienes el link para tu evaluación interactiva: http://localhost:5173/?invite=' + e.uuid_evaluacion)}`, '_blank')} className="btn-premium btn-ghost-green" style={{ flex: 1 }}><Icons.MessageCircle size={14}/> WhatsApp</button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
 
               {/* Columna: Atención Requerida */}
-              <div className="pipeline-column" style={{ flex: 1, minWidth: '250px', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px', borderTop: '4px solid #E53E3E' }}>
-                <h4 style={{ margin: '0 0 16px 0', color: '#E53E3E' }}>{t('attentionRequired')}</h4>
-                {empleados.filter(e => (e.burnoutRisk || e.attritionRisk)).length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>Sin registros</div>}
-                {empleados.filter(e => (e.burnoutRisk || e.attritionRisk)).map(e => (
-                  <div key={e.id} style={{ background: 'white', padding: '16px', borderRadius: '8px', marginBottom: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', borderLeft: '4px solid #E53E3E' }}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
+                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'attention')}>
+                <h4 style={{ margin: '0 0 16px 0', color: '#E53E3E', display: 'flex', alignItems: 'center' }}>
+                  <span className="status-dot" style={{ color: '#E53E3E', background: 'currentColor' }}></span> {t('attentionRequired')}
+                </h4>
+                {getColumnData('attention').length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>{t('noRecords')}</div>}
+                {getColumnData('attention').map((e, index) => (
+                  <motion.div key={e.id} className="card-premium-light card-border-red"
+                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
+                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <div style={{ fontWeight: 'bold', color: '#2D3748' }}>{e.nombre}</div>
                       <input type="checkbox" checked={!!selectedForCompare.find(s => s.id === e.id)} onChange={(evt) => toggleCompare(e, evt)} />
@@ -630,19 +903,24 @@ export default function HRDashboard({ hrToken, onLogout }) {
                     {e.attritionRisk && <div style={{ fontSize: '0.75rem', color: '#DD6B20' }}>⚠️ {t('attritionRisk')}</div>}
                     {e.burnoutRisk && <div style={{ fontSize: '0.75rem', color: '#E53E3E' }}>🚩 {t('burnoutRisk')}</div>}
                     <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                      <button onClick={() => copyLink(e.uuid_evaluacion)} style={{ flex: 1, padding: '6px', background: '#EDF2F7', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><Icons.Copy size={14}/> {t('link')}</button>
-                      <button onClick={() => verAnalisis(e.id)} style={{ flex: 1, padding: '6px', background: 'transparent', border: '1px solid #CBD5E0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>{t('profile')}</button>
+                      <button onClick={() => copyLink(e.uuid_evaluacion)} className="btn-premium btn-ghost-gray" style={{ flex: 1 }}><Icons.Copy size={14}/> {t('link')}</button>
+                      <button onClick={() => verAnalisis(e.id)} className="btn-premium btn-ghost-blue" style={{ flex: 1 }}>{t('profile')}</button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
 
               {/* Columna: Nuevos */}
-              <div className="pipeline-column" style={{ flex: 1, minWidth: '250px', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px', borderTop: '4px solid #3182CE' }}>
-                <h4 style={{ margin: '0 0 16px 0', color: '#3182CE' }}>{t('newCandidates')}</h4>
-                {empleados.filter(e => e.promedio_nps > 0 && e.promedio_nps < 80 && !e.burnoutRisk && !e.attritionRisk).length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>Sin registros</div>}
-                {empleados.filter(e => e.promedio_nps > 0 && e.promedio_nps < 80 && !e.burnoutRisk && !e.attritionRisk).map(e => (
-                  <div key={e.id} style={{ background: 'white', padding: '16px', borderRadius: '8px', marginBottom: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', borderLeft: '4px solid #3182CE' }}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
+                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'new')}>
+                <h4 style={{ margin: '0 0 16px 0', color: '#3182CE', display: 'flex', alignItems: 'center' }}>
+                  <span className="status-dot" style={{ color: '#3182CE', background: 'currentColor' }}></span> {t('newCandidates')}
+                </h4>
+                {getColumnData('new').length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>{t('noRecords')}</div>}
+                {getColumnData('new').map((e, index) => (
+                  <motion.div key={e.id} className="card-premium-light card-border-blue"
+                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
+                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <div style={{ fontWeight: 'bold', color: '#2D3748' }}>{e.nombre}</div>
                       <input type="checkbox" checked={!!selectedForCompare.find(s => s.id === e.id)} onChange={(evt) => toggleCompare(e, evt)} />
@@ -652,19 +930,24 @@ export default function HRDashboard({ hrToken, onLogout }) {
                       <span style={{ fontFamily: 'monospace' }}>ID: {e.uuid_evaluacion.split('-')[0]}...</span> <Icons.Copy size={12} />
                     </div>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                      <button onClick={() => copyLink(e.uuid_evaluacion)} style={{ flex: 1, padding: '6px', background: '#EDF2F7', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><Icons.Copy size={14}/> {t('link')}</button>
-                      <button onClick={() => verAnalisis(e.id)} style={{ flex: 1, padding: '6px', background: '#EBF4FF', border: '1px solid #BEE3F8', color: '#2B6CB0', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>{t('profile')}</button>
+                      <button onClick={() => copyLink(e.uuid_evaluacion)} className="btn-premium btn-ghost-gray" style={{ flex: 1 }}><Icons.Copy size={14}/> {t('link')}</button>
+                      <button onClick={() => verAnalisis(e.id)} className="btn-premium btn-ghost-blue" style={{ flex: 1 }}>{t('profile')}</button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
 
               {/* Columna: Destacados */}
-              <div className="pipeline-column" style={{ flex: 1, minWidth: '250px', background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '12px', borderTop: '4px solid #48BB78' }}>
-                <h4 style={{ margin: '0 0 16px 0', color: '#48BB78' }}>Alto Potencial</h4>
-                {empleados.filter(e => e.promedio_nps >= 80 && !e.burnoutRisk && !e.attritionRisk).length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>Sin registros</div>}
-                {empleados.filter(e => e.promedio_nps >= 80 && !e.burnoutRisk && !e.attritionRisk).map(e => (
-                  <div key={e.id} style={{ background: 'white', padding: '16px', borderRadius: '8px', marginBottom: '12px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', borderLeft: '4px solid #48BB78' }}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
+                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'potential')}>
+                <h4 style={{ margin: '0 0 16px 0', color: '#48BB78', display: 'flex', alignItems: 'center' }}>
+                  <span className="status-dot" style={{ color: '#48BB78', background: 'currentColor' }}></span> {t('highPotential')}
+                </h4>
+                {getColumnData('potential').length === 0 && <div style={{ padding: '20px', textAlign: 'center', color: '#A0AEC0', fontSize: '0.9rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px dashed #CBD5E0' }}>{t('noRecords')}</div>}
+                {getColumnData('potential').map((e, index) => (
+                  <motion.div key={e.id} className="card-premium-light card-border-green"
+                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
+                       initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <div style={{ fontWeight: 'bold', color: '#2D3748' }}>{e.nombre}</div>
                       <input type="checkbox" checked={!!selectedForCompare.find(s => s.id === e.id)} onChange={(evt) => toggleCompare(e, evt)} />
@@ -674,10 +957,10 @@ export default function HRDashboard({ hrToken, onLogout }) {
                       <span style={{ fontFamily: 'monospace' }}>ID: {e.uuid_evaluacion.split('-')[0]}...</span> <Icons.Copy size={12} />
                     </div>
                     <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                      <button onClick={() => copyLink(e.uuid_evaluacion)} style={{ flex: 1, padding: '6px', background: '#EDF2F7', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}><Icons.Copy size={14}/> {t('link')}</button>
-                      <button onClick={() => verAnalisis(e.id)} style={{ flex: 1, padding: '6px', background: '#F0FFF4', border: '1px solid #9AE6B4', color: '#276749', borderRadius: '4px', cursor: 'pointer', fontSize: '0.8rem' }}>{t('profile')}</button>
+                      <button onClick={() => copyLink(e.uuid_evaluacion)} className="btn-premium btn-ghost-gray" style={{ flex: 1 }}><Icons.Copy size={14}/> {t('link')}</button>
+                      <button onClick={() => verAnalisis(e.id)} className="btn-premium btn-ghost-green" style={{ flex: 1 }}>{t('profile')}</button>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
 
@@ -771,28 +1054,82 @@ export default function HRDashboard({ hrToken, onLogout }) {
                 </div>
               ) : analisis && analisis.ultimo_radar ? (
                 <>
-                  <div style={{ height: '350px', marginBottom: '30px', background: '#F8FAFC', borderRadius: '12px', padding: '20px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={
-                        analisis.ultimo_radar.map(d => ({
-                          ...d,
-                          Ideal: selectedEmp.rol === 'Front Desk' ? (d.subject==='Empatía'?95:d.subject==='Resolución'?85:90) : 
-                                 selectedEmp.rol === 'Mantenimiento' ? (d.subject==='Resolución'?95:d.subject==='Empatía'?70:85) : 85
-                        }))
-                      }>
-                        <PolarGrid />
-                        <PolarAngleAxis dataKey="subject" />
-                        <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                        <Radar name={t('benchmarkIdeal')} dataKey="Ideal" stroke="#A0AEC0" fill="#A0AEC0" fillOpacity={0.1} strokeDasharray="3 3" />
-                        <Radar name={t('lastEvaluation')} dataKey="Última" stroke="#6772E5" fill="#6772E5" fillOpacity={0.6} />
-                        <Radar name={t('historicalAvg')} dataKey="Promedio" stroke="#C5A059" fill="#C5A059" fillOpacity={0.3} />
-                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                      </RadarChart>
+                  <div style={{ height: '380px', marginBottom: '30px', background: '#F8FAFC', borderRadius: '12px', padding: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h4 style={{ margin: 0, color: '#4A5568' }}>{showHistory ? 'Evolución Histórica' : 'Análisis de Habilidades'}</h4>
+                      {analisis.historial && analisis.historial.length > 0 && (
+                        <button onClick={() => setShowHistory(!showHistory)} style={{ padding: '6px 12px', background: 'white', border: '1px solid #CBD5E0', borderRadius: '6px', cursor: 'pointer', fontSize: '0.8rem', color: '#4A5568', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Icons.TrendingUp size={14} /> {showHistory ? 'Ver Radar' : 'Ver Evolución'}
+                        </button>
+                      )}
+                    </div>
+                    <ResponsiveContainer width="100%" height="85%">
+                      {showHistory && analisis.historial && analisis.historial.length > 0 ? (
+                        <LineChart data={analisis.historial.map(h => ({ fecha: new Date(h.created_at).toLocaleDateString(), NPS: h.nps_global, Análisis: h.analisis_pct, Empatía: h.empatia_pct, Resolución: h.resolucion_pct }))}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="fecha" />
+                          <YAxis domain={[0, 100]} />
+                          <Tooltip />
+                          <Legend />
+                          <Line type="monotone" dataKey="NPS" stroke="#C5A059" strokeWidth={2} />
+                          <Line type="monotone" dataKey="Análisis" stroke="#3182CE" strokeWidth={2} />
+                          <Line type="monotone" dataKey="Empatía" stroke="#38A169" strokeWidth={2} />
+                          <Line type="monotone" dataKey="Resolución" stroke="#D53F8C" strokeWidth={2} />
+                        </LineChart>
+                      ) : (
+                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={
+                          analisis.ultimo_radar.map(d => ({
+                            ...d,
+                            Ideal: selectedEmp.rol === 'Front Desk' ? (d.subject==='Empatía'?95:d.subject==='Resolución'?85:90) : 
+                                   selectedEmp.rol === 'Mantenimiento' ? (d.subject==='Resolución'?95:d.subject==='Empatía'?70:85) : 85
+                          }))
+                        }>
+                          <PolarGrid />
+                          <PolarAngleAxis dataKey="subject" />
+                          <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                          <Radar name={t('benchmarkIdeal')} dataKey="Ideal" stroke="#A0AEC0" fill="#A0AEC0" fillOpacity={0.1} strokeDasharray="3 3" />
+                          <Radar name={t('lastEvaluation')} dataKey="Última" stroke="#6772E5" fill="#6772E5" fillOpacity={0.6} />
+                          <Radar name={t('historicalAvg')} dataKey="Promedio" stroke="#C5A059" fill="#C5A059" fillOpacity={0.3} />
+                          <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                        </RadarChart>
+                      )}
                     </ResponsiveContainer>
                   </div>
 
+                  {analisis.respuestas_detalle && analisis.respuestas_detalle.length > 0 && (
+                    <div style={{ padding: '24px', background: 'linear-gradient(145deg, #ffffff, #f8fafc)', borderRadius: '16px', border: '1px solid #E2E8F0', marginBottom: '24px', boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid #EDF2F7' }}>
+                        <div style={{ background: '#EBF4FF', padding: '10px', borderRadius: '12px', color: '#3182CE' }}>
+                          <Icons.MessageSquare size={22} />
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, color: '#2D3748', fontSize: '1.1rem', fontWeight: 'bold' }}>Registro de Decisiones</h4>
+                          <p style={{ margin: '4px 0 0 0', color: '#718096', fontSize: '0.85rem' }}>Análisis detallado de las respuestas en el simulador</p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {analisis.respuestas_detalle.map((res, i) => (
+                          <DecisionItem key={i} res={res} index={i} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {analisis.interview_questions && analisis.interview_questions.length > 0 && (
+                    <ProCard icon={Icons.Users} title="Entrevista (Preguntas y Respuestas)">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {analisis.interview_questions.map((q, i) => (
+                          <div key={i} style={{ paddingBottom: '16px', borderBottom: i < analisis.interview_questions.length - 1 ? '1px solid #EDF2F7' : 'none' }}>
+                            <p style={{ margin: '0 0 8px 0', fontSize: '0.95rem', color: '#2D3748', fontWeight: '600' }}>{q.question}</p>
+                            <p style={{ margin: 0, fontSize: '0.9rem', color: '#4A5568', lineHeight: '1.5' }}>{q.answer}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </ProCard>
+                  )}
+
                   {selectedEmp.burnoutRisk && (
-                    <div style={{ padding: '16px', background: '#FFF5F5', color: '#C53030', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '4px solid #E53E3E' }}>
+                    <div style={{ padding: '16px', background: 'white', color: '#C53030', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #FC8181' }}>
                       <Icons.AlertTriangle size={24} />
                       <div>
                         <strong>{t('burnoutRisk')}</strong>
@@ -802,7 +1139,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
                   )}
 
                   {selectedEmp.attritionRisk && (
-                    <div style={{ padding: '16px', background: '#FFFAF0', color: '#C05621', borderRadius: '8px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', borderLeft: '4px solid #DD6B20' }}>
+                    <div style={{ padding: '16px', background: 'white', color: '#DD6B20', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #F6AD55' }}>
                       <Icons.AlertTriangle size={24} />
                       <div>
                         <strong>{t('attritionRisk')}</strong>
@@ -811,114 +1148,125 @@ export default function HRDashboard({ hrToken, onLogout }) {
                     </div>
                   )}
 
-                  <div style={{ padding: '20px', background: 'var(--brand-primary)', color: 'white', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 10px 25px rgba(197, 160, 89, 0.3)' }}>
-                    <Icons.Cpu size={32} />
-                    <div>
-                      <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem' }}>{t('aiReport')}</h3>
-                      <p style={{ margin: 0, opacity: 0.9 }}>{t('aiReportDesc')}</p>
+                  <ProCard icon={Icons.Star} title={t('leaderFeedback')}>
+                    <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#718096' }}>Calificación manual del líder de área</p>
+                    <div style={{ display: 'flex', gap: '4px', marginBottom: '20px' }}>
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <Icons.Star 
+                          key={star} 
+                          size={28} 
+                          cursor="pointer"
+                          fill={(leaderRatings[selectedEmp.id] || 0) >= star ? '#CBD5E0' : 'transparent'}
+                          color="#CBD5E0"
+                          onClick={() => setLeaderRatings({ ...leaderRatings, [selectedEmp.id]: star })}
+                          style={{ transition: 'all 0.2s ease', transform: (leaderRatings[selectedEmp.id] || 0) === star ? 'scale(1.1)' : 'scale(1)' }}
+                        />
+                      ))}
                     </div>
-                  </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: '#F7FAFC', padding: '16px', borderRadius: '8px' }}>
+                      <div style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>{t('aiPotential')} (NPS)</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2D3748' }}>{Math.round(selectedEmp.promedio_nps)}/100</div>
+                      </div>
+                      <div style={{ width: '1px', background: '#E2E8F0', height: '40px' }}></div>
+                      <div style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#718096', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Rating Líder</div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: '#2D3748' }}>{leaderRatings[selectedEmp.id] ? `${leaderRatings[selectedEmp.id]}/5` : 'S/D'}</div>
+                      </div>
+                    </div>
+                  </ProCard>
+
+                  <ProCard icon={Icons.Cpu} title={t('aiReport')}>
+                    <p style={{ margin: 0 }}>{t('aiReportDesc')}</p>
+                  </ProCard>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                     {analisis.puntos_fuertes && (
-                      <div style={{ background: '#F0FFF4', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #48BB78' }}>
-                        <h4 style={{ margin: '0 0 12px 0', color: '#276749' }}>{t('strengths')}</h4>
-                        <ul style={{ margin: 0, paddingLeft: '20px', color: '#2F855A' }}>
+                      <ProCard title={t('strengths')}>
+                        <ul style={{ margin: 0, paddingLeft: '20px' }}>
                           {analisis.puntos_fuertes.map((pf, i) => <li key={i} style={{ marginBottom: '8px' }}>{pf}</li>)}
                         </ul>
-                      </div>
+                      </ProCard>
                     )}
                     
                     {analisis.areas_mejora && (
-                      <div style={{ background: '#FFF5F5', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #E53E3E' }}>
-                        <h4 style={{ margin: '0 0 12px 0', color: '#9B2C2C' }}>{t('areasToImprove')}</h4>
-                        <ul style={{ margin: 0, paddingLeft: '20px', color: '#C53030' }}>
+                      <ProCard title={t('areasToImprove')}>
+                        <ul style={{ margin: 0, paddingLeft: '20px' }}>
                           {analisis.areas_mejora.map((am, i) => <li key={i} style={{ marginBottom: '8px' }}>{am}</li>)}
                         </ul>
-                      </div>
+                      </ProCard>
                     )}
                   </div>
 
                   {analisis.personalityProfile && (
-                    <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #ED8936', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <h4 style={{ margin: '0 0 12px 0', color: '#C05621', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Brain size={20} /> {t('psychProfile')}</h4>
-                      <p style={{ margin: 0, fontSize: '0.95rem', color: '#7B341E', lineHeight: '1.6' }}>
-                        {analisis.personalityProfile}
-                      </p>
-                    </div>
+                    <ProCard icon={Icons.Brain} title={t('psychProfile')}>
+                      {analisis.personalityProfile}
+                    </ProCard>
                   )}
 
                   {analisis.audioBase64 && (
-                    <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #38B2AC', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <h4 style={{ margin: '0 0 12px 0', color: '#2C7A7B', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Mic size={20} /> {t('rolePlayAudio')}</h4>
-                      <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#4A5568' }}>{t('audioDesc')}</p>
+                    <ProCard icon={Icons.Mic} title={t('rolePlayAudio')}>
+                      <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem' }}>{t('audioDesc')}</p>
                       <audio controls src={analisis.audioBase64} style={{ width: '100%' }} />
-                    </div>
+                    </ProCard>
                   )}
 
                   {selectedEmp.cultureFitMatch !== null && selectedEmp.cultureFitMatch !== undefined && (
-                    <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #D53F8C', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                      <h4 style={{ margin: '0 0 12px 0', color: '#B83280', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Heart size={20} /> {t('cultureFit')}</h4>
+                    <ProCard icon={Icons.Heart} title={t('cultureFit')}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ flex: 1, background: '#EDF2F7', height: '12px', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div style={{ width: `${selectedEmp.cultureFitMatch}%`, background: 'linear-gradient(90deg, #F687B3 0%, #D53F8C 100%)', height: '100%', borderRadius: '6px' }} />
+                          <div style={{ width: `${selectedEmp.cultureFitMatch}%`, background: '#A0AEC0', height: '100%', borderRadius: '6px' }} />
                         </div>
-                        <div style={{ fontWeight: '900', fontSize: '1.4rem', color: '#97266D' }}>{selectedEmp.cultureFitMatch}%</div>
+                        <div style={{ fontWeight: 'bold', fontSize: '1.4rem', color: '#2D3748' }}>{selectedEmp.cultureFitMatch}%</div>
                       </div>
-                      <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem', color: '#718096' }}>{t('cultureFitDesc')}</p>
-                    </div>
+                      <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem' }}>{t('cultureFitDesc')}</p>
+                    </ProCard>
                   )}
 
-                  <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #6772E5', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <h4 style={{ margin: '0 0 12px 0', color: '#2B6CB0', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Grid size={20} /> {t('nineBox')}</h4>
-                    <p style={{ margin: 0, fontSize: '0.95rem', color: '#2A4365', lineHeight: '1.6', fontWeight: 'bold' }}>
+                  <ProCard icon={Icons.Grid} title={t('nineBox')}>
+                    <p style={{ margin: '0 0 16px 0', fontWeight: 'bold', color: '#2D3748' }}>
                       {t('quadrant')}: {selectedEmp.nineBox || 'No Data'}
                     </p>
                     {selectedEmp.nineBox && selectedEmp.nineBox !== 'No Data' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginTop: '16px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
                         {['Enigma', 'High Potential', 'Future Leader', 'Dilemma', 'Core Player', 'High Performer', 'Underperformer', 'Effective Operator', 'Trusted Professional'].map(b => (
                           <div key={b} style={{ 
-                            background: b === selectedEmp.nineBox ? '#4299E1' : '#EDF2F7', 
+                            background: b === selectedEmp.nineBox ? '#4A5568' : '#EDF2F7', 
                             color: b === selectedEmp.nineBox ? 'white' : '#718096', 
                             padding: '12px 4px', 
                             textAlign: 'center', 
                             fontSize: '0.7rem', 
                             lineHeight: '1.2',
                             fontWeight: 'bold', 
-                            borderRadius: '6px',
-                            boxShadow: b === selectedEmp.nineBox ? '0 4px 10px rgba(66, 153, 225, 0.4)' : 'none',
-                            transform: b === selectedEmp.nineBox ? 'scale(1.05)' : 'none',
-                            transition: 'all 0.2s ease'
+                            borderRadius: '6px'
                           }}>
                             {b}
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </ProCard>
 
-                  <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #48BB78', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
-                    <h4 style={{ margin: '0 0 12px 0', color: '#276749', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.TrendingUp size={20} /> {t('promotionAlgorithm')}</h4>
-                    <p style={{ margin: 0, fontSize: '0.95rem', color: '#22543D', lineHeight: '1.6' }}>
-                      {analisis.recomendacionAscenso}
-                    </p>
-                  </div>
+                  <ProCard icon={Icons.TrendingUp} title={t('promotionAlgorithm')}>
+                    {analisis.recomendacionAscenso}
+                  </ProCard>
 
-                  <div style={{ padding: '20px', background: '#EBF4FF', borderRadius: '12px', borderLeft: '4px solid #3182CE', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
-                    <h4 style={{ margin: '0 0 12px 0', color: '#2A4365', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.GraduationCap size={20} /> {t('continuousTraining')}</h4>
+                  <ProCard icon={Icons.GraduationCap} title={t('continuousTraining')}>
                     {analisis.training_plan ? (
-                      <div style={{ fontSize: '0.9rem', color: '#2C5282', lineHeight: '1.6' }}>
+                      <div>
                         {renderMarkdown(analisis.training_plan)}
                       </div>
                     ) : (
                       <div>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#2C5282' }}>{t('noTrainingPlan')}</p>
-                        <button onClick={generateTrainingPlan} style={{ padding: '8px 16px', background: '#3182CE', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <p style={{ margin: '0 0 16px 0' }}>{t('noTrainingPlan')}</p>
+                        <button onClick={generateTrainingPlan} style={{ padding: '8px 16px', background: 'white', color: '#4A5568', border: '1px solid #CBD5E0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
                           <Icons.Sparkles size={16} /> {t('generateAiPlan')}
                         </button>
                       </div>
                     )}
-                  </div>
+                  </ProCard>
+
+
                 </>
               ) : (
                 <div style={{ padding: '40px', textAlign: 'center', color: '#718096' }}>{t('loadingAnalysis')}</div>
@@ -1146,6 +1494,54 @@ export default function HRDashboard({ hrToken, onLogout }) {
             </div>
           </div>
         )}
+
+        {/* Profile Picture Modal */}
+        <AnimatePresence>
+          {showProfilePicModal && (
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 9999, display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+              onClick={() => setShowProfilePicModal(false)}
+            >
+              <motion.div 
+                initial={{ scale: 0.9, y: 20 }} 
+                animate={{ scale: 1, y: 0 }} 
+                exit={{ scale: 0.9, y: 20 }}
+                style={{ background: theme === 'dark' ? '#1E293B' : 'white', padding: '30px', borderRadius: '16px', maxWidth: '400px', width: '90%', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h3 style={{ margin: 0, color: theme === 'dark' ? 'white' : '#2D3748', fontSize: '1.2rem' }}>Foto de Perfil</h3>
+                  <button onClick={() => setShowProfilePicModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '5px' }}>
+                    <Icons.X size={20} color="#718096" />
+                  </button>
+                </div>
+                
+                <img 
+                  src={profileData?.profile_image && profileData.profile_image.trim() !== '' ? (profileData.profile_image.startsWith('data:') ? profileData.profile_image : `${API_URL}${profileData.profile_image.startsWith('/') ? '' : '/'}${profileData.profile_image}`) : `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || 'User')}&background=C5A059&color=fff&size=200`} 
+                  alt="Profile" 
+                  onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName || 'User')}&background=C5A059&color=fff&size=200`; }}
+                  style={{ width: '200px', height: '200px', borderRadius: '50%', objectFit: 'cover', border: '5px solid #C5A059', boxShadow: '0 10px 25px rgba(0,0,0,0.15)', marginBottom: '30px' }} 
+                />
+
+                <div style={{ position: 'relative' }}>
+                  <button style={{ width: '100%', padding: '12px', background: '#C5A059', color: 'white', border: 'none', borderRadius: '8px', fontSize: '1rem', fontWeight: 'bold', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', cursor: 'pointer', transition: 'background 0.2s' }}>
+                    <Icons.Upload size={18} /> Cambiar Foto
+                  </button>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleQuickProfileUpdate}
+                    style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                  />
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
       </div>
     </div>
   );
