@@ -220,6 +220,46 @@ app.post('/api/hr/empleados/nuevo', verifyToken, upload.single('cv'), async (req
   }
 });
 
+app.delete('/api/hr/empleados/:id', verifyToken, async (req, res) => {
+  try {
+    const empId = req.params.id;
+    if (req.empresa.rol === 'area_manager') {
+      const { rows: checkRows } = await db.query('SELECT rol FROM empleados WHERE id = $1', [empId]);
+      if (checkRows.length === 0 || checkRows[0].rol !== req.empresa.area_asignada) {
+        return res.status(403).json({ error: 'No tienes permiso para borrar a este empleado' });
+      }
+    }
+    await db.query('DELETE FROM asignaciones_cursos WHERE empleado_id = $1', [empId]);
+    await db.query('DELETE FROM evaluaciones WHERE empleado_id = $1', [empId]);
+    await db.query('DELETE FROM empleados WHERE id = $1', [empId]);
+    res.json({ message: 'Empleado borrado correctamente' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al borrar empleado' });
+  }
+});
+
+app.put('/api/hr/empleados/:id/leader_rating', verifyToken, async (req, res) => {
+  try {
+    const empId = req.params.id;
+    const { rating_companerismo, rating_empatia } = req.body;
+    if (req.empresa.rol === 'area_manager') {
+      const { rows: checkRows } = await db.query('SELECT rol FROM empleados WHERE id = $1', [empId]);
+      if (checkRows.length === 0 || checkRows[0].rol !== req.empresa.area_asignada) {
+        return res.status(403).json({ error: 'No tienes permiso para calificar a este empleado' });
+      }
+    }
+    await db.query(
+      'UPDATE empleados SET rating_companerismo = $1, rating_empatia = $2 WHERE id = $3',
+      [rating_companerismo, rating_empatia, empId]
+    );
+    res.json({ message: 'Calificación actualizada correctamente' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al actualizar calificación' });
+  }
+});
+
 app.get('/api/hr/empleados/:id/analisis', verifyToken, async (req, res) => {
   try {
     const empId = req.params.id;

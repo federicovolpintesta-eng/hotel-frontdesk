@@ -1,0 +1,76 @@
+-import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
++import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, LineChart, Line } from 'recharts';
++  const [draggedItem, setDraggedItem] = useState(null);
++        alert(t('profileUpdated') || 'Foto actualizada correctamente');
++    const headers = ['ID', 'Nombre', 'Rol', 'Tipo Perfil', 'NPS', 'Riesgo Fuga', 'Riesgo Burnout'];
++      e.tipo_perfil, 
++    const matchesType = filterType === 'Todos' || e.tipo_perfil === filterType;
++  const handleDragStart = (e, item) => {
++    setDraggedItem(item);
++  const handleDragOver = (e) => {
++    if (draggedItem) {
++        [draggedItem.id]: columnId
++      setDraggedItem(null);
+-        <div onClick={() => setCurrentTab('perfil')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'perfil' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
+-            <Icons.User size={24} color={currentTab === 'perfil' ? '#FFF' : '#A0AEC0'} />
+-            <span style={{ color: currentTab === 'perfil' ? '#FFF' : '#A0AEC0', fontWeight: currentTab === 'perfil' ? 'bold' : 'normal' }}>Mi Perfil</span>
++              <div onClick={() => setCurrentTab('perfil')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'perfil' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'perfil' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'perfil' ? '3px solid #C5A059' : '3px solid transparent' }}>
++                <span style={{ fontWeight: currentTab === 'perfil' ? '600' : '400' }}>Mi Perfil</span>
++                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'pending')}>
++                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
++                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'attention')}>
++                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
++                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'new')}>
++                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
++                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'potential')}>
++                       draggable onDragStart={(evt) => handleDragStart(evt, e)} style={{ cursor: 'grab' }}
+-                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={
+-                        analisis.ultimo_radar.map(d => ({
+-                        <Radar name={t('benchmarkIdeal')} dataKey="Ideal" stroke="#A0AEC0" fill="#A0AEC0" fillOpacity={0.1} strokeDasharray="3 3" />
+-                        <Radar name={t('lastEvaluation')} dataKey="Última" stroke="#6772E5" fill="#6772E5" fillOpacity={0.6} />
+-                        <Radar name={t('historicalAvg')} dataKey="Promedio" stroke="#C5A059" fill="#C5A059" fillOpacity={0.3} />
+-                      </RadarChart>
++                          <Icons.TrendingUp size={14} /> {showHistory ? 'Ver Radar' : 'Ver Evolución'}
++                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={
++                          analisis.ultimo_radar.map(d => ({
++                          <Radar name={t('benchmarkIdeal')} dataKey="Ideal" stroke="#A0AEC0" fill="#A0AEC0" fillOpacity={0.1} strokeDasharray="3 3" />
++                          <Radar name={t('lastEvaluation')} dataKey="Última" stroke="#6772E5" fill="#6772E5" fillOpacity={0.6} />
++                          <Radar name={t('historicalAvg')} dataKey="Promedio" stroke="#C5A059" fill="#C5A059" fillOpacity={0.3} />
++                        </RadarChart>
++                  <h3 style={{ margin: 0, color: theme === 'dark' ? 'white' : '#2D3748', fontSize: '1.2rem' }}>Foto de Perfil</h3>
++                    <Icons.Upload size={18} /> Cambiar Foto
++        alert(t('profileUpdated') || 'Perfil actualizado correctamente');
++        <div onClick={() => setCurrentTab('perfil')} style={{ marginBottom: '20px', cursor: 'pointer', padding: '12px', backgroundColor: currentTab === 'perfil' ? 'rgba(255,255,255,0.1)' : 'transparent', borderRadius: '8px' }}>
++            <Icons.User size={24} color={currentTab === 'perfil' ? '#FFF' : '#A0AEC0'} />
++            <span style={{ color: currentTab === 'perfil' ? '#FFF' : '#A0AEC0', fontWeight: currentTab === 'perfil' ? 'bold' : 'normal' }}>Mi Perfil</span>
++        {currentTab === 'perfil' && (
++            <h1 style={{ color: textTheme, marginBottom: '20px' }}>Mi Perfil</h1>
++            <p style={{ color: '#718096', marginBottom: '40px' }}>Actualiza tus datos personales, contraseña y foto de perfil.</p>
++                    <img src={profileData.profile_image} alt="Perfil" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: `2px solid var(--brand-primary)` }} />
++                    <label style={{ display: 'block', fontWeight: 'bold', marginBottom: '8px', color: textTheme }}>Foto de Perfil</label>
++                  Guardar Perfil
++import { Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, ResponsiveContainer, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
++      profile: "Perfil",
++      psychProfile: "Perfil Psicológico (IA)",
++        data.push({ emp, radar: d.ultimo_radar || [] });
++      formData.append('tipo_perfil', newTipo);
++    const el = document.getElementById('perfil-container');
++    const actionsDiv = document.getElementById('perfil-actions');
++                    <div style={{ fontSize: '0.8rem', color: '#718096', marginBottom: '8px' }}>{e.rol} • {e.tipo_perfil}</div>
++                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={[
++                      { subject: t('resolution'), ...Object.fromEntries(compareData.map(d => [d.emp.nombre, d.radar.find(r => r.subject==='Resolución')?.Última || 0])) },
++                      { subject: t('analysis'), ...Object.fromEntries(compareData.map(d => [d.emp.nombre, d.radar.find(r => r.subject==='Análisis')?.Última || 0])) },
++                      { subject: t('empathy'), ...Object.fromEntries(compareData.map(d => [d.emp.nombre, d.radar.find(r => r.subject==='Empatía')?.Última || 0])) },
++                      { subject: t('globalNps'), ...Object.fromEntries(compareData.map(d => [d.emp.nombre, d.radar.find(r => r.subject==='NPS Global')?.Última || 0])) }
++                        return <Radar key={d.emp.id} name={d.emp.nombre} dataKey={d.emp.nombre} stroke={colors[idx]} fill={colors[idx]} fillOpacity={0.4} />;
++                    </RadarChart>
++            <motion.div id="perfil-container" className="modal-right" initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '550px', background: 'white', padding: '40px', boxShadow: '-10px 0 30px rgba(0,0,0,0.1)', zIndex: 1000, overflowY: 'auto', borderLeft: '1px solid #E2E8F0' }}>
++                    <span>{selectedEmp.tipo_perfil}</span>
++                <div id="perfil-actions" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
++              ) : analisis && analisis.ultimo_radar ? (
++                      <RadarChart cx="50%" cy="50%" outerRadius="70%" data={
++                        analisis.ultimo_radar.map(d => ({
++                        <Radar name={t('benchmarkIdeal')} dataKey="Ideal" stroke="#A0AEC0" fill="#A0AEC0" fillOpacity={0.1} strokeDasharray="3 3" />
++                        <Radar name={t('lastEvaluation')} dataKey="Última" stroke="#6772E5" fill="#6772E5" fillOpacity={0.6} />
++                        <Radar name={t('historicalAvg')} dataKey="Promedio" stroke="#C5A059" fill="#C5A059" fillOpacity={0.3} />
++                      </RadarChart>
