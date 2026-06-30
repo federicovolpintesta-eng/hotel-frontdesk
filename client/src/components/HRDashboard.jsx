@@ -88,6 +88,7 @@ export default function HRDashboard({ hrToken, onLogout }) {
   const [showHistory, setShowHistory] = useState(false);
   const [columnOverrides, setColumnOverrides] = useState({});
   const [draggedItem, setDraggedItem] = useState(null);
+  const [dragOverCol, setDragOverCol] = useState(null);
   const [leaderRatings, setLeaderRatings] = useState({});
   // Tabs: 'general', 'config'
   const [currentTab, setCurrentTab] = useState('general');
@@ -644,12 +645,20 @@ export default function HRDashboard({ hrToken, onLogout }) {
 
   const handleDragStart = (e, item) => {
     setDraggedItem(item);
+    // Optional: make the drag ghost look better if needed
+    e.dataTransfer.effectAllowed = 'move';
   };
-  const handleDragOver = (e) => {
+  const handleDragOver = (e, colId) => {
     e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverCol !== colId) setDragOverCol(colId);
+  };
+  const handleDragLeave = (e) => {
+    setDragOverCol(null);
   };
   const handleDrop = (e, columnId) => {
     e.preventDefault();
+    setDragOverCol(null);
     if (draggedItem) {
       setColumnOverrides({
         ...columnOverrides,
@@ -727,13 +736,15 @@ export default function HRDashboard({ hrToken, onLogout }) {
             <span style={{ fontWeight: currentTab === '9box' ? '600' : '400' }}>{t('nineBox')}</span>
           </div>
 
+          <div onClick={() => setCurrentTab('perfil')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'perfil' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'perfil' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'perfil' ? '3px solid #C5A059' : '3px solid transparent' }}>
+            <Icons.User size={20} />
+            <span style={{ fontWeight: currentTab === 'perfil' ? '600' : '400' }}>Mi Perfil</span>
+          </div>
+
           {userRole === 'admin' && (
             <>
-              <div onClick={() => setCurrentTab('perfil')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'perfil' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'perfil' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'perfil' ? '3px solid #C5A059' : '3px solid transparent' }}>
-                <Icons.User size={20} />
-                <span style={{ fontWeight: currentTab === 'perfil' ? '600' : '400' }}>Mi Perfil</span>
-              </div>
               
+
               <div onClick={() => setCurrentTab('config')} style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', padding: '12px 16px', backgroundColor: currentTab === 'config' ? 'rgba(197, 160, 89, 0.15)' : 'transparent', borderRadius: '8px', color: currentTab === 'config' ? '#C5A059' : '#94A3B8', transition: 'all 0.2s', borderLeft: currentTab === 'config' ? '3px solid #C5A059' : '3px solid transparent' }}>
                 <Icons.Settings size={20} />
                 <span style={{ fontWeight: currentTab === 'config' ? '600' : '400' }}>{t('config')}</span>
@@ -855,8 +866,8 @@ export default function HRDashboard({ hrToken, onLogout }) {
             <div className="pipeline-container" style={{ display: 'flex', gap: '16px', overflowX: 'auto', paddingBottom: '16px' }}>
               
               {/* Columna: Pendientes */}
-              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
-                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'pending')}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0, backgroundColor: dragOverCol === 'pending' ? 'rgba(103, 114, 229, 0.05)' : 'transparent', border: dragOverCol === 'pending' ? '2px dashed #6772E5' : '2px dashed transparent', borderRadius: '12px', transition: 'all 0.2s' }}
+                   onDragOver={(e) => handleDragOver(e, 'pending')} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, 'pending')}>
                 <h4 style={{ margin: '0 0 16px 0', color: '#A0AEC0', display: 'flex', alignItems: 'center' }}>
                   <span className="status-dot" style={{ color: '#CBD5E0', background: 'currentColor' }}></span> {t('pending')}
                 </h4>
@@ -882,8 +893,8 @@ export default function HRDashboard({ hrToken, onLogout }) {
               </div>
 
               {/* Columna: Atención Requerida */}
-              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
-                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'attention')}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0, backgroundColor: dragOverCol === 'attention' ? 'rgba(229, 62, 62, 0.05)' : 'transparent', border: dragOverCol === 'attention' ? '2px dashed #E53E3E' : '2px dashed transparent', borderRadius: '12px', transition: 'all 0.2s' }}
+                   onDragOver={(e) => handleDragOver(e, 'attention')} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, 'attention')}>
                 <h4 style={{ margin: '0 0 16px 0', color: '#E53E3E', display: 'flex', alignItems: 'center' }}>
                   <span className="status-dot" style={{ color: '#E53E3E', background: 'currentColor' }}></span> {t('attentionRequired')}
                 </h4>
@@ -911,8 +922,8 @@ export default function HRDashboard({ hrToken, onLogout }) {
               </div>
 
               {/* Columna: Nuevos */}
-              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
-                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'new')}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0, backgroundColor: dragOverCol === 'new' ? 'rgba(49, 130, 206, 0.05)' : 'transparent', border: dragOverCol === 'new' ? '2px dashed #3182CE' : '2px dashed transparent', borderRadius: '12px', transition: 'all 0.2s' }}
+                   onDragOver={(e) => handleDragOver(e, 'new')} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, 'new')}>
                 <h4 style={{ margin: '0 0 16px 0', color: '#3182CE', display: 'flex', alignItems: 'center' }}>
                   <span className="status-dot" style={{ color: '#3182CE', background: 'currentColor' }}></span> {t('newCandidates')}
                 </h4>
@@ -938,8 +949,8 @@ export default function HRDashboard({ hrToken, onLogout }) {
               </div>
 
               {/* Columna: Destacados */}
-              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0 }}
-                   onDragOver={handleDragOver} onDrop={(e) => handleDrop(e, 'potential')}>
+              <div className="pipeline-column pipeline-column-premium" style={{ flex: 1, minWidth: 0, backgroundColor: dragOverCol === 'potential' ? 'rgba(72, 187, 120, 0.05)' : 'transparent', border: dragOverCol === 'potential' ? '2px dashed #48BB78' : '2px dashed transparent', borderRadius: '12px', transition: 'all 0.2s' }}
+                   onDragOver={(e) => handleDragOver(e, 'potential')} onDragLeave={handleDragLeave} onDrop={(e) => handleDrop(e, 'potential')}>
                 <h4 style={{ margin: '0 0 16px 0', color: '#48BB78', display: 'flex', alignItems: 'center' }}>
                   <span className="status-dot" style={{ color: '#48BB78', background: 'currentColor' }}></span> {t('highPotential')}
                 </h4>
@@ -1176,95 +1187,112 @@ export default function HRDashboard({ hrToken, onLogout }) {
                     </div>
                   </ProCard>
 
-                  <ProCard icon={Icons.Cpu} title={t('aiReport')}>
-                    <p style={{ margin: 0 }}>{t('aiReportDesc')}</p>
-                  </ProCard>
+                  <div style={{ padding: '20px', background: 'var(--brand-primary)', color: 'white', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '20px', boxShadow: '0 10px 25px rgba(197, 160, 89, 0.3)' }}>
+                    <Icons.Cpu size={32} />
+                    <div>
+                      <h3 style={{ margin: '0 0 8px 0', fontSize: '1.4rem' }}>{t('aiReport')}</h3>
+                      <p style={{ margin: 0, opacity: 0.9 }}>{t('aiReportDesc')}</p>
+                    </div>
+                  </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: '24px' }}>
                     {analisis.puntos_fuertes && (
-                      <ProCard title={t('strengths')}>
-                        <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                      <div style={{ background: '#F0FFF4', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #48BB78' }}>
+                        <h4 style={{ margin: '0 0 12px 0', color: '#276749' }}>{t('strengths')}</h4>
+                        <ul style={{ margin: 0, paddingLeft: '20px', color: '#2F855A' }}>
                           {analisis.puntos_fuertes.map((pf, i) => <li key={i} style={{ marginBottom: '8px' }}>{pf}</li>)}
                         </ul>
-                      </ProCard>
+                      </div>
                     )}
                     
                     {analisis.areas_mejora && (
-                      <ProCard title={t('areasToImprove')}>
-                        <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                      <div style={{ background: '#FFF5F5', padding: '20px', borderRadius: '12px', borderLeft: '4px solid #E53E3E' }}>
+                        <h4 style={{ margin: '0 0 12px 0', color: '#9B2C2C' }}>{t('areasToImprove')}</h4>
+                        <ul style={{ margin: 0, paddingLeft: '20px', color: '#C53030' }}>
                           {analisis.areas_mejora.map((am, i) => <li key={i} style={{ marginBottom: '8px' }}>{am}</li>)}
                         </ul>
-                      </ProCard>
+                      </div>
                     )}
                   </div>
 
                   {analisis.personalityProfile && (
-                    <ProCard icon={Icons.Brain} title={t('psychProfile')}>
-                      {analisis.personalityProfile}
-                    </ProCard>
+                    <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #ED8936', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <h4 style={{ margin: '0 0 12px 0', color: '#C05621', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Brain size={20} /> {t('psychProfile')}</h4>
+                      <p style={{ margin: 0, fontSize: '0.95rem', color: '#7B341E', lineHeight: '1.6' }}>
+                        {analisis.personalityProfile}
+                      </p>
+                    </div>
                   )}
 
                   {analisis.audioBase64 && (
-                    <ProCard icon={Icons.Mic} title={t('rolePlayAudio')}>
-                      <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem' }}>{t('audioDesc')}</p>
+                    <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #38B2AC', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <h4 style={{ margin: '0 0 12px 0', color: '#2C7A7B', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Mic size={20} /> {t('rolePlayAudio')}</h4>
+                      <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#4A5568' }}>{t('audioDesc')}</p>
                       <audio controls src={analisis.audioBase64} style={{ width: '100%' }} />
-                    </ProCard>
+                    </div>
                   )}
 
                   {selectedEmp.cultureFitMatch !== null && selectedEmp.cultureFitMatch !== undefined && (
-                    <ProCard icon={Icons.Heart} title={t('cultureFit')}>
+                    <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #D53F8C', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                      <h4 style={{ margin: '0 0 12px 0', color: '#B83280', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Heart size={20} /> {t('cultureFit')}</h4>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                         <div style={{ flex: 1, background: '#EDF2F7', height: '12px', borderRadius: '6px', overflow: 'hidden' }}>
-                          <div style={{ width: `${selectedEmp.cultureFitMatch}%`, background: '#A0AEC0', height: '100%', borderRadius: '6px' }} />
+                          <div style={{ width: `${selectedEmp.cultureFitMatch}%`, background: 'linear-gradient(90deg, #F687B3 0%, #D53F8C 100%)', height: '100%', borderRadius: '6px' }} />
                         </div>
-                        <div style={{ fontWeight: 'bold', fontSize: '1.4rem', color: '#2D3748' }}>{selectedEmp.cultureFitMatch}%</div>
+                        <div style={{ fontWeight: '900', fontSize: '1.4rem', color: '#97266D' }}>{selectedEmp.cultureFitMatch}%</div>
                       </div>
-                      <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem' }}>{t('cultureFitDesc')}</p>
-                    </ProCard>
+                      <p style={{ margin: '10px 0 0 0', fontSize: '0.85rem', color: '#718096' }}>{t('cultureFitDesc')}</p>
+                    </div>
                   )}
 
-                  <ProCard icon={Icons.Grid} title={t('nineBox')}>
-                    <p style={{ margin: '0 0 16px 0', fontWeight: 'bold', color: '#2D3748' }}>
+                  <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #6772E5', marginBottom: '20px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: '#2B6CB0', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.Grid size={20} /> {t('nineBox')}</h4>
+                    <p style={{ margin: 0, fontSize: '0.95rem', color: '#2A4365', lineHeight: '1.6', fontWeight: 'bold' }}>
                       {t('quadrant')}: {selectedEmp.nineBox || 'No Data'}
                     </p>
                     {selectedEmp.nineBox && selectedEmp.nineBox !== 'No Data' && (
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginTop: '16px' }}>
                         {['Enigma', 'High Potential', 'Future Leader', 'Dilemma', 'Core Player', 'High Performer', 'Underperformer', 'Effective Operator', 'Trusted Professional'].map(b => (
                           <div key={b} style={{ 
-                            background: b === selectedEmp.nineBox ? '#4A5568' : '#EDF2F7', 
+                            background: b === selectedEmp.nineBox ? '#4299E1' : '#EDF2F7', 
                             color: b === selectedEmp.nineBox ? 'white' : '#718096', 
-                            padding: '12px 4px', 
-                            textAlign: 'center', 
-                            fontSize: '0.7rem', 
-                            lineHeight: '1.2',
-                            fontWeight: 'bold', 
-                            borderRadius: '6px'
+                            padding: '8px', textAlign: 'center', fontSize: '0.75rem', fontWeight: 'bold', 
+                            borderRadius: '6px',
+                            boxShadow: b === selectedEmp.nineBox ? '0 4px 10px rgba(66, 153, 225, 0.4)' : 'none',
+                            transform: b === selectedEmp.nineBox ? 'scale(1.05)' : 'none',
+                            transition: 'all 0.2s ease'
                           }}>
                             {b}
                           </div>
                         ))}
                       </div>
                     )}
-                  </ProCard>
+                  </div>
 
-                  <ProCard icon={Icons.TrendingUp} title={t('promotionAlgorithm')}>
-                    {analisis.recomendacionAscenso}
-                  </ProCard>
+                  {analisis.recomendacionAscenso && (
+                    <div style={{ padding: '20px', background: 'white', borderRadius: '12px', borderLeft: '4px solid #48BB78', boxShadow: '0 2px 4px rgba(0,0,0,0.05)', marginBottom: '20px' }}>
+                      <h4 style={{ margin: '0 0 12px 0', color: '#276749', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.TrendingUp size={20} /> {t('promotionAlgorithm')}</h4>
+                      <p style={{ margin: 0, fontSize: '0.95rem', color: '#22543D', lineHeight: '1.6' }}>
+                        {analisis.recomendacionAscenso}
+                      </p>
+                    </div>
+                  )}
 
-                  <ProCard icon={Icons.GraduationCap} title={t('continuousTraining')}>
+                  <div style={{ padding: '20px', background: '#EBF4FF', borderRadius: '12px', borderLeft: '4px solid #3182CE', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
+                    <h4 style={{ margin: '0 0 12px 0', color: '#2A4365', display: 'flex', alignItems: 'center', gap: '8px' }}><Icons.GraduationCap size={20} /> {t('continuousTraining')}</h4>
                     {analisis.training_plan ? (
-                      <div>
+                      <div style={{ fontSize: '0.9rem', color: '#2C5282', lineHeight: '1.6' }}>
                         {renderMarkdown(analisis.training_plan)}
                       </div>
                     ) : (
-                      <div>
-                        <p style={{ margin: '0 0 16px 0' }}>{t('noTrainingPlan')}</p>
-                        <button onClick={generateTrainingPlan} style={{ padding: '8px 16px', background: 'white', color: '#4A5568', border: '1px solid #CBD5E0', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                      <>
+                        <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: '#2C5282' }}>{t('noTrainingPlan')}</p>
+                        <button onClick={generateTrainingPlan} style={{ padding: '8px 16px', background: '#3182CE', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
                           <Icons.Sparkles size={16} /> {t('generateAiPlan')}
                         </button>
-                      </div>
+                      </>
                     )}
-                  </ProCard>
+                  </div>
 
 
                 </>
